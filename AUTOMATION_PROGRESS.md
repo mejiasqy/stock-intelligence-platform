@@ -126,9 +126,40 @@ Inclua estas regras explícitas:
 
 ---
 
+### Sessão 2026-06-23 — Auditoria final Sprint 0
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 0 — auditoria de fechamento
+- **Objetivo da sessão:** auditar todos os 12 critérios da Sprint 0 com evidências reais antes de iniciar Sprint 1.
+- **Arquivos criados:** —
+- **Arquivos alterados:** `AUTOMATION_PROGRESS.md` (registro de auditoria)
+- **Comandos executados e resultados:**
+  - `pytest tests/ -v --cov=app` → 3 passed, 0 failed ✓
+  - `ruff check .` → All checks passed ✓
+  - `ruff format --check .` → 15 files already formatted ✓
+  - `mypy app/` → no issues found in 12 source files ✓
+  - `npm run lint` → sem erros ✓
+  - `npx tsc --noEmit` → exit code 0 ✓
+  - `npm run build` → Compiled successfully ✓
+  - `docker compose config` → válido ✓
+  - `docker compose ps` → STATUS: healthy ✓
+  - `GET /api/v1/health` → {"status":"ok","version":"0.1.0"} ✓
+  - `GET /api/v1/ready` → {"status":"ok","database":"connected"} ✓
+  - `git status` → nothing to commit, working tree clean ✓
+  - CI GitHub Actions → completed / success (commits 9814f33 e f9b3a0c) ✓
+- **Resultado entregue:** todos os 12 critérios aprovados; 4 pendências não bloqueantes documentadas.
+- **Pendências não bloqueantes:**
+  - StarletteDeprecationWarning no TestClient (httpx → httpx2) — sem impacto.
+  - Cobertura 0% em dependencies.py e base.py — esperado para Sprint 0.
+  - CONTRIBUTING.md ausente — decisão deliberada (Sprint 8).
+  - npm run dev não testado ao vivo — build estático confirmado como substituto.
+- **Data/hora de encerramento:** 2026-06-23 — 14:00
+
+---
+
 ### Sessão 2026-06-23 — Implementação da Sprint 0
 
-- **Status da sessão:** em andamento (pendente: validação com Docker + CI verde)
+- **Status da sessão:** concluído
 - **Sprint e tarefa:** Sprint 0 — Fundação e governança
 - **Objetivo da sessão:** implementar todos os entregáveis da Sprint 0.
 - **Arquivos criados:**
