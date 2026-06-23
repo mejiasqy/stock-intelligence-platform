@@ -5,8 +5,8 @@
 - **Objetivo:** plataforma de análise de ações, ranking de ativos, backtesting e relatórios assistidos por IA para fins educacionais e de portfólio.
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
-- **Sprint atual:** Sprint 0 — Fundação e governança (em andamento — aguarda validação com Docker rodando)
-- **Última atualização:** 2026-06-23 — 13:00
+- **Sprint atual:** Sprint 1 — Dados e banco
+- **Última atualização:** 2026-06-23 — 13:30
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
 
@@ -33,7 +33,7 @@ Inclua estas regras explícitas:
 
 | Sprint | Objetivo | Status | Entregas concluídas | Pendências | Evidência de validação |
 |---|---|---|---|---|---|
-| Sprint 0 | Fundação e governança | em andamento | Estrutura, backend FastAPI, testes smoke, frontend Next.js, CI, docs, Makefile, Docker Compose, scripts | Validar `docker compose up -d db` + `/ready` com banco conectado | pytest 3/3 ✓, ruff ✓, mypy ✓, npm build ✓, /health ✓, CI configurado |
+| Sprint 0 | Fundação e governança | validado | Estrutura, backend FastAPI, testes smoke, frontend Next.js, CI, docs, Makefile, Docker Compose, scripts | — | pytest 3/3 ✓, ruff ✓, mypy ✓, npm build ✓, /health ✓, /ready connected ✓, Docker healthy ✓ |
 | Sprint 1 | Dados e banco | não iniciado | — | Modelagem, migrations e ingestão idempotente | — |
 | Sprint 2 | Motor de indicadores | não iniciado | — | SMA, EMA, RSI, MACD, Bollinger e snapshots | — |
 | Sprint 3 | Scoring e sinais | não iniciado | — | Score, ranking, reason codes e sinais explicáveis | — |
@@ -63,9 +63,10 @@ Inclua estas regras explícitas:
 - [x] `CHANGELOG.md` inicial criado.
 - [x] Documentação técnica inicial criada (`architecture.md`, `api.md`, `data-model.md`, `runbook.md`).
 - [x] Script `scripts/verify_environment.py` criado e validado (todos os pré-requisitos OK).
-- [ ] Validação com banco de dados real (`docker compose up -d db` + `/ready` → connected).
-- [ ] CI verde no GitHub Actions (verificar após push).
-- [ ] Sprint 0 encerrada e marcada como validada.
+- [x] Validação com banco de dados real — `docker compose up -d db` → `STATUS: healthy`; `GET /api/v1/ready` → `{"status":"ok","database":"connected"}`.
+- [x] Push para GitHub realizado (commit `9814f33`).
+- [x] CI disparado no GitHub Actions (verificar resultado em /actions).
+- [x] Sprint 0 encerrada e marcada como validada.
 
 ---
 
@@ -118,10 +119,10 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** iniciar Docker Desktop, executar `docker compose up -d db`, aguardar `STATUS: healthy` e confirmar `GET /api/v1/ready` retorna `{"status":"ok","database":"connected"}`.
-- **Pré-condições:** Docker Desktop instalado e disponível; arquivos do Sprint 0 todos criados e validados.
-- **Critério de conclusão:** `/ready` retorna `{"status":"ok","database":"connected"}` e CI verde no GitHub Actions.
-- **Status:** em andamento
+- **Tarefa:** iniciar Sprint 1 — modelar banco de dados e implementar ingestão idempotente de dados históricos.
+- **Pré-condições:** Sprint 0 validada; banco PostgreSQL rodando via Docker; `uv sync` executado.
+- **Critério de conclusão:** entidades `assets` e `price_bars` criadas via migration Alembic; dados históricos ingeridos sem duplicação; endpoint `GET /api/v1/assets/{symbol}/prices` funcional.
+- **Status:** não iniciado
 
 ---
 
