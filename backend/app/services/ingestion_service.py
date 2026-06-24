@@ -6,6 +6,9 @@ from app.db.models.price_bar import PriceBar
 from app.providers.market_data.yfinance_provider import YFinanceProvider
 from app.schemas.price_bar import IngestionResult
 
+_DEFAULT_TIMEFRAME = "1d"
+_DEFAULT_SOURCE = "yfinance"
+
 
 def get_or_create_asset(db: Session, symbol: str, name: str) -> Asset:
     asset = db.query(Asset).filter(Asset.symbol == symbol).first()
@@ -21,6 +24,8 @@ def ingest_prices(
     symbol: str,
     days: int = 365,
     provider: YFinanceProvider | None = None,
+    timeframe: str = _DEFAULT_TIMEFRAME,
+    source: str = _DEFAULT_SOURCE,
 ) -> IngestionResult:
     if provider is None:
         provider = YFinanceProvider()
@@ -35,6 +40,8 @@ def ingest_prices(
     rows = [
         {
             "asset_id": asset.id,
+            "timeframe": timeframe,
+            "source": source,
             "timestamp": row["timestamp"],
             "open": float(row["open"]),
             "high": float(row["high"]),
@@ -45,15 +52,38 @@ def ingest_prices(
         for _, row in df.iterrows()
     ]
 
-    existing = db.query(PriceBar).filter(PriceBar.asset_id == asset.id).count()
+    existing = (
+        db.query(PriceBar)
+        .filter(
+            PriceBar.asset_id == asset.id,
+            PriceBar.timeframe == timeframe,
+            PriceBar.source == source,
+        )
+        .count()
+    )
 
     stmt = pg_insert(PriceBar).values(rows)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["asset_id", "timestamp"])
+    stmt = stmt.on_conflict_do_nothing(
+        index_elements=["asset_id", "timeframe", "timestamp", "source"]
+    )
     db.execute(stmt)
     db.commit()
 
-    after = db.query(PriceBar).filter(PriceBar.asset_id == asset.id).count()
+    after = (
+        db.query(PriceBar)
+        .filter(
+            PriceBar.asset_id == asset.id,
+            PriceBar.timeframe == timeframe,
+            PriceBar.source == source,
+        )
+        .count()
+    )
     inserted = after - existing
     skipped = len(rows) - inserted
 
-    return IngestionResult(symbol=symbol, inserted=inserted, skipped=skipped)
+    return IngestionResult(
+        symbol=symbol,
+        inserted=inserted,
+        skipped=skipped,
+        asset_id=asset.id,
+    )

@@ -25,3 +25,4 @@ class IngestionResult(BaseModel):
     symbol: str
     inserted: int
     skipped: int
+    asset_id: int | None = None

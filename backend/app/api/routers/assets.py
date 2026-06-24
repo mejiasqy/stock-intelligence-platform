@@ -6,7 +6,9 @@ from app.db.models.asset import Asset
 from app.db.models.price_bar import PriceBar
 from app.schemas.asset import AssetCreate, AssetRead
 from app.schemas.price_bar import IngestionRequest, IngestionResult, PriceBarRead
+from app.services.analysis_service import calculate_and_persist
 from app.services.ingestion_service import ingest_prices
+from app.services.scoring_service import score_and_persist
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -52,4 +54,8 @@ def run_ingestion(
     payload: IngestionRequest,
     db: Session = Depends(get_db),
 ) -> IngestionResult:
-    return ingest_prices(db, symbol=payload.symbol.upper(), days=payload.days)
+    result = ingest_prices(db, symbol=payload.symbol.upper(), days=payload.days)
+    if result.inserted > 0 and result.asset_id is not None:
+        snapshot = calculate_and_persist(db, asset_id=result.asset_id)
+        score_and_persist(db, asset_id=result.asset_id, snapshot=snapshot)
+    return result

@@ -5,8 +5,8 @@
 - **Objetivo:** plataforma de análise de ações, ranking de ativos, backtesting e relatórios assistidos por IA para fins educacionais e de portfólio.
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
-- **Sprint atual:** Sprint 1 — Dados e banco
-- **Última atualização:** 2026-06-23 — 13:30
+- **Sprint atual:** Sprint 4 — Motor de Backtesting (a iniciar)
+- **Última atualização:** 2026-06-23 — 23:00
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
 
@@ -35,8 +35,8 @@ Inclua estas regras explícitas:
 |---|---|---|---|---|---|
 | Sprint 0 | Fundação e governança | validado | Estrutura, backend FastAPI, testes smoke, frontend Next.js, CI, docs, Makefile, Docker Compose, scripts | — | pytest 3/3 ✓, ruff ✓, mypy ✓, npm build ✓, /health ✓, /ready connected ✓, Docker healthy ✓ |
 | Sprint 1 | Dados e banco | validado | Models Asset/PriceBar, Alembic migration, ingestão idempotente, endpoints CRUD+ingestão, seed script, 9 testes | — | pytest 12/12 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
-| Sprint 2 | Motor de indicadores | não iniciado | — | SMA, EMA, RSI, MACD, Bollinger e snapshots | — |
-| Sprint 3 | Scoring e sinais | não iniciado | — | Score, ranking, reason codes e sinais explicáveis | — |
+| Sprint 2 | Motor de indicadores | validado | domain/indicators, IndicatorSnapshot, AnalysisService, endpoints GET/POST análise, migration price_bars+snapshots, D17 fixes | — | pytest 62/62 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
+| Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 4 | Backtesting | não iniciado | — | Motor de backtest, métricas e auditoria | — |
 | Sprint 5 | API profissional e segurança inicial | não iniciado | — | Contratos, documentação, validação e proteção inicial | — |
 | Sprint 6 | Dashboard | não iniciado | — | Overview, watchlist, ativo e backtests | — |
@@ -119,10 +119,10 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** iniciar Sprint 2 — Motor de indicadores técnicos (SMA, EMA, RSI, MACD, Bollinger).
-- **Pré-condições:** Sprint 1 validada; banco com dados históricos via seed; `alembic upgrade head` executado.
-- **Critério de conclusão:** indicadores calculados sobre série histórica real; endpoint de snapshot; testes aprovados.
-- **Status:** não iniciado
+- **Tarefa:** iniciar planejamento da Sprint 4 — Motor de Backtesting.
+- **Pré-condições:** Sprint 3 validada (91/91 testes ✓).
+- **Critério de conclusão:** plano aprovado e implementação com testes passando.
+- **Status:** aguardando início
 
 ---
 
@@ -306,6 +306,234 @@ Inclua estas regras explícitas:
 - **Pendências:** push para GitHub e verificação do CI.
 - **Próxima tarefa recomendada:** Sprint 2 — Motor de indicadores técnicos.
 - **Data/hora de encerramento:** 2026-06-23 — 20:00
+
+---
+
+### Sessão 2026-06-23 — Revisão Sprint 1 e Planejamento Sprint 2
+
+- **Status da sessão:** concluído (planejamento)
+- **Sprint e tarefa:** Sprint 2 — elaboração do plano
+- **Objetivo da sessão:** revisar entrega da Sprint 1 com foco em compatibilidade para Sprint 2 e apresentar plano detalhado para aprovação do usuário.
+- **Arquivos criados:** —
+- **Arquivos alterados:** `AUTOMATION_PROGRESS.md` (registro desta sessão)
+- **Código implementado:** nenhum
+- **Achados da revisão da Sprint 1:**
+  - Models `Asset` e `PriceBar` possuem todos os campos OHLCV necessários para indicadores.
+  - `timestamp` é armazenado com timezone UTC — correto.
+  - Dois ajustes indispensáveis identificados em `yfinance_provider.py` antes de Sprint 2: `dropna` para OHLC + `sort_values("timestamp")`.
+  - Campos `timeframe` e `source` ausentes em `price_bars` (divergência do `PROJECT_CONTEXT.md`); migration corretiva planejada para o início da Sprint 2.
+  - Índice composto `(asset_id, timestamp)` via constraint `uq_price_bar_asset_ts` é suficiente para queries de indicadores.
+- **Decisões pendentes de aprovação (D12–D19):**
+  - D12: pandas nativo (sem pandas-ta)
+  - D13: EMA com `adjust=False`
+  - D14: Volatilidade — `std(ddof=1) × √252`, rolling 20 candles
+  - D15: Drawdown — janela de 60 candles
+  - D16: `calculation_version = "1.0.0"` como constante em `engine.py`
+  - D17: Ajustes obrigatórios em `yfinance_provider.py`
+  - D18: Migration de complemento em `price_bars` no início de Sprint 2
+  - D19: Endpoint `/analysis` calcula ao vivo e persiste snapshot na mesma chamada
+- **Resultado entregue:** plano detalhado da Sprint 2 com 8 seções completas.
+- **Problemas, riscos ou bloqueios:** nenhum bloqueio. Plano aguarda aprovação explícita antes de qualquer implementação.
+- **Pendências:** aprovação do usuário sobre o plano e decisões D12–D19.
+- **Próxima tarefa recomendada:** receber aprovação e iniciar Sprint 2 pelos dois ajustes em `yfinance_provider.py`, depois migrations, depois `domain/indicators/`.
+- **Data/hora de encerramento:** 2026-06-23 — 21:00
+
+---
+
+---
+
+### Sessão 2026-06-23 — Implementação da Sprint 2
+
+- **Status da sessão:** em andamento
+- **Sprint e tarefa:** Sprint 2 — Motor de indicadores técnicos
+- **Objetivo da sessão:** calcular e persistir indicadores com dados confiáveis; expor snapshots via endpoints.
+
+#### Decisões aprovadas (D12–D19)
+
+| ID | Decisão |
+|---|---|
+| D12 | `pandas` e `numpy` nativos; sem `pandas-ta`; funções puras e testáveis |
+| D13 | EMA com `adjust=False` (recursivo); convenção documentada e coberta em teste |
+| D14 | Volatilidade = `std(ddof=1)` dos retornos % diários, rolling 20 × `sqrt(252)` |
+| D15 | `max_drawdown_60d` = maximum drawdown nos últimos 60 candles; `current_drawdown_60d` incluído |
+| D16 | `CALCULATION_VERSION = "1.0.0"` em `engine.py`; persistido em todo snapshot |
+| D17 | `yfinance_provider.py`: sort_values("timestamp") + dropna(OHLC) |
+| D18 | Migration: adicionar `timeframe` e `source` em `price_bars`, nova constraint UNIQUE(asset_id, timeframe, timestamp, source); downgrade com verificação de colisão |
+| D19 | `GET /analysis` somente leitura; `POST /analysis/recalculate` é a ação explícita; recálculo automático pós-ingestão quando `inserted > 0` |
+
+#### Mínimos por indicador
+
+| Indicador | Mínimo de candles |
+|---|---|
+| return_1d | 2 |
+| return_5d | 6 |
+| return_20d | 21 |
+| return_60d | 61 |
+| rsi_14 | 15 |
+| sma_20, ema_20, bollinger | 20 |
+| vol_annualized_20d | 21 |
+| macd (12,26,9) | 35 (26 para EMA26 + 9 para linha de sinal) |
+| sma_50 | 50 |
+| max_drawdown_60d, current_drawdown_60d | 60 |
+| volume_avg_20 | 20 |
+
+#### Status do snapshot
+- `ok`: todos os indicadores disponíveis (n ≥ 61)
+- `partial`: parte dos indicadores disponível (2 ≤ n < 61)
+- `insufficient_data`: menos de 2 candles
+
+#### Campos nulos
+- Cada indicador retorna `None` quando histórico insuficiente
+- `insufficient_fields: {campo: mínimo_requerido}` no payload
+- Sem `NaN` ou `Infinity` expostos na API
+
+#### Limitação documentada desta sprint
+A ingestão atual é idempotente e não atualiza candles históricos já existentes. Correções retroativas de dados serão tratadas em sprint futura.
+
+#### Arquivos criados
+- `backend/app/db/migrations/versions/a1b2c3d4e5f6_add_timeframe_source_to_price_bars.py`
+- `backend/app/domain/__init__.py`
+- `backend/app/domain/indicators/__init__.py`
+- `backend/app/domain/indicators/engine.py`
+- `backend/app/domain/indicators/moving_averages.py`
+- `backend/app/domain/indicators/oscillators.py`
+- `backend/app/domain/indicators/bands.py`
+- `backend/app/domain/indicators/risk.py`
+- `backend/app/domain/indicators/returns.py`
+- `backend/app/db/models/indicator_snapshot.py`
+- `backend/app/db/migrations/versions/d1e2f3a4b5c6_create_indicator_snapshots.py`
+- `backend/app/schemas/indicator_snapshot.py`
+- `backend/app/services/analysis_service.py`
+- `backend/app/api/routers/analysis.py`
+- `backend/tests/unit/__init__.py`
+- `backend/tests/unit/test_indicators.py`
+- `backend/tests/unit/test_yfinance_provider.py`
+- `backend/tests/integration/__init__.py`
+- `backend/tests/integration/test_analysis.py`
+
+#### Arquivos alterados
+- `AUTOMATION_PROGRESS.md`
+- `backend/app/db/models/price_bar.py`
+- `backend/app/providers/market_data/yfinance_provider.py`
+- `backend/app/services/ingestion_service.py`
+- `backend/app/api/routers/assets.py`
+- `backend/app/main.py`
+- `backend/tests/conftest.py`
+
+- **Comandos executados e resultados:**
+  - `alembic upgrade head` → migrations `a1b2c3d4e5f6` e `d1e2f3a4b5c6` aplicadas ✓
+  - `pytest tests/ -v` → **62 passed** em 4.04s ✓
+  - `ruff check .` → All checks passed ✓
+  - `ruff format --check .` → 50 files already formatted ✓
+  - `mypy app/` → no issues found in 41 source files ✓
+- **Resultado entregue:** Sprint 2 completa e validada.
+- **Pendências:** push para GitHub e verificação do CI.
+- **Próxima tarefa recomendada:** Sprint 3 — Scoring e sinais explicáveis.
+- **Data/hora de encerramento:** 2026-06-23 — 22:30
+
+---
+
+---
+
+### Sessão 2026-06-23 — Planejamento da Sprint 3
+
+- **Status da sessão:** concluído (planejamento)
+- **Sprint e tarefa:** Sprint 3 — Scoring e sinais explicáveis
+- **Objetivo da sessão:** apresentar plano detalhado da Sprint 3 para aprovação do usuário.
+- **Arquivos criados:** —
+- **Arquivos alterados:** `AUTOMATION_PROGRESS.md`
+- **Código implementado:** nenhum
+
+#### Plano proposto
+
+**Fluxo de dados:**
+```
+ingest → AnalysisService (indicadores) → ScoringService (score + sinal)
+GET /assets/{symbol}/signal      → leitura do sinal mais recente
+GET /rankings                    → todos os ativos ordenados por score DESC
+POST /assets/{symbol}/signal/recalculate → recálculo explícito (X-Api-Key)
+```
+
+**Módulo novo:** `app/domain/scoring/` com funções puras por pilar e `SCORING_VERSION = "1.0.0"`.
+
+**Tabela nova:** `signals` com UNIQUE(asset_id, strategy_version), campos: signal_type, strength, score, reason_codes (JSON), pillar_scores (JSON), snapshot_id (FK), calculated_at.
+
+#### Decisões pendentes de aprovação (D20–D27)
+
+| ID | Decisão | Status |
+|---|---|---|
+| D20 | Pilares e pesos: Tendência 30, Momentum 25, Volume 15, Volatilidade/Risco 15, Estrutura 15 | aguarda aprovação |
+| D21 | Lista de ~20 reason_codes com thresholds definidos (price_above_sma_20, rsi_oversold, etc.) | aguarda aprovação |
+| D22 | Tabela signals; score≥60→bullish, ≤40→bearish, entre→neutral; strength por distância do score de 50 | aguarda aprovação |
+| D23 | SCORING_VERSION = "1.0.0" em engine.py, mesmo padrão de CALCULATION_VERSION | aguarda aprovação |
+| D24 | GET /rankings retorna apenas ativos com sinal persistido, ordenados por score DESC, paginação limit/offset | aguarda aprovação |
+| D25 | Pilar Volume: Opção A (adicionar last_volume em indicator_snapshots) ou B (comparar subjanelas)? | aguarda escolha do usuário |
+| D26 | Scoring disparado automaticamente após analysis_service no fluxo de ingestão | aguarda aprovação |
+| D27 | POST /signal/recalculate protegido por X-Api-Key (mesmo padrão do Sprint 2) | aguarda aprovação |
+
+- **Problemas, riscos ou bloqueios:** nenhum.
+- **Pendências:** aprovação das decisões D20–D27 antes de qualquer implementação.
+- **Próxima tarefa recomendada:** receber aprovação e iniciar Sprint 3 por `app/domain/scoring/engine.py`.
+- **Data/hora de encerramento:** 2026-06-23 — 23:00
+
+---
+
+### Sessão 2026-06-24 — Implementação da Sprint 3
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 3 — Scoring e sinais explicáveis
+- **Objetivo da sessão:** implementar motor de scoring, tabela de sinais, endpoints e testes.
+
+#### Decisões aprovadas (D20–D27)
+
+| ID | Decisão |
+|---|---|
+| D20 | Pilares: Tendência 30%, Momentum 25%, Volume 15%, Risco 15%, Estrutura 15% |
+| D21 | 20 reason_codes com thresholds (price_above_sma_20, rsi_in_bullish_range, volume_surge, etc.) |
+| D22 | score ≥ 60 → bullish; ≤ 40 → bearish; entre → neutral; strength = abs(score−50)/50 |
+| D23 | SCORING_VERSION = "1.0.0" em app/domain/scoring/engine.py |
+| D24 | GET /rankings retorna ativos com sinal, score DESC, paginado (limit/offset) |
+| D25 | Opção A: last_close e last_volume adicionados em indicator_snapshots |
+| D26 | Scoring disparado automaticamente após calculate_and_persist() no fluxo de ingestão |
+| D27 | POST /assets/{symbol}/signal/recalculate protegido por X-Api-Key |
+
+#### Arquivos criados
+- `backend/app/domain/scoring/__init__.py`
+- `backend/app/domain/scoring/engine.py`
+- `backend/app/domain/scoring/reason_codes.py`
+- `backend/app/domain/scoring/pillars.py`
+- `backend/app/db/models/signal.py`
+- `backend/app/db/migrations/versions/f3a4b5c6d7e8_add_last_close_volume_and_signals.py`
+- `backend/app/schemas/signal.py`
+- `backend/app/services/scoring_service.py`
+- `backend/app/api/routers/signals.py`
+- `backend/tests/integration/conftest.py`
+- `backend/tests/unit/test_scoring.py`
+- `backend/tests/integration/test_signals.py`
+
+#### Arquivos alterados
+- `backend/app/domain/indicators/engine.py` — last_close, last_volume no SnapshotPayload
+- `backend/app/db/models/indicator_snapshot.py` — colunas last_close, last_volume
+- `backend/app/db/models/__init__.py` — exporta Signal
+- `backend/app/schemas/indicator_snapshot.py` — expõe last_close, last_volume
+- `backend/app/services/analysis_service.py` — persiste last_close, last_volume
+- `backend/app/api/routers/assets.py` — chama score_and_persist() pós-ingestão
+- `backend/app/main.py` — registra router signals
+- `backend/tests/conftest.py` — clean_db movido para integration/conftest.py
+- `AUTOMATION_PROGRESS.md`
+
+- **Comandos executados e resultados:**
+  - `docker compose up -d db` → STATUS: healthy ✓
+  - `alembic upgrade head` → migration f3a4b5c6d7e8 aplicada ✓
+  - `pytest tests/ -v` → **91 passed** em 3.62s ✓
+  - `ruff check .` → All checks passed ✓
+  - `ruff format --check .` → All formatted ✓
+  - `mypy app/` → no issues found in 50 source files ✓
+- **Resultado entregue:** Sprint 3 completa e validada.
+- **Problemas, riscos ou bloqueios:** nenhum.
+- **Pendências:** push para GitHub e verificação do CI.
+- **Próxima tarefa recomendada:** Sprint 4 — Motor de Backtesting.
+- **Data/hora de encerramento:** 2026-06-24 — 10:00
 
 ---
 
