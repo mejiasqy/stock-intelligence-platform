@@ -537,4 +537,46 @@ POST /assets/{symbol}/signal/recalculate → recálculo explícito (X-Api-Key)
 
 ---
 
+### Sessão 2026-06-24 — Auditoria final Sprint 3 + Planejamento Sprint 4
+
+- **Status da sessão:** concluído (auditoria + planejamento; nenhum código de produto alterado)
+- **Sprint e tarefa:** Sprint 4 — auditoria de compatibilidade da Sprint 3 e elaboração do plano
+- **Objetivo da sessão:** auditar a Sprint 3 com foco em backtesting e apresentar plano detalhado da Sprint 4 para aprovação.
+- **Arquivos criados:** —
+- **Arquivos alterados:** `AUTOMATION_PROGRESS.md` (registro desta sessão)
+- **Código implementado:** nenhum
+
+#### Achados da auditoria da Sprint 3 (verificados no código)
+1. Unicidade de `signals` = `UNIQUE(asset_id, strategy_version)` (`uq_signal_asset_strategy`).
+2. `Signal` **não** possui `timeframe`/`source` próprios; só os alcança via `snapshot_id` (FK nullable) → não inequívoco.
+3. Sem fonte/timeframe canônicos formalizados; existem apenas como defaults duplicados (`1d`/`yfinance`) em price_bar, indicator_snapshot e ingestion_service.
+4. Confirmado: uma estratégia gera apenas um sinal corrente por ativo (upsert por constraint). Sem histórico temporal de sinais.
+5. Candle histórico corrigido na fonte é **descartado** (ON CONFLICT DO NOTHING); banco mantém valor antigo (stale).
+6. Limitação reafirmada: ingestão idempotente não atualiza candles existentes — impacto direto em backtest.
+7. Confirmado: `GET /signal` e `GET /rankings` são leitura pura, sem recálculo.
+8. Confirmado: `POST /signal/recalculate` protegido por `X-Api-Key` (padrão atual).
+9. **NÃO validado no GitHub:** commit `59c078a` está `ahead 1` (apenas local). Push e CI remoto pendentes.
+
+#### Achado de segurança
+- A URL do remoto `origin` (em `.git/config`) embute um PAT do GitHub em texto claro — contraria a regra de "sem segredos". Recomendado revogar/rotacionar o token e reconfigurar via credential helper/SSH.
+
+#### Plano da Sprint 4 (aguardando aprovação)
+- Motor de backtest puro em `app/domain/backtesting/`; **não** reutiliza a tabela `signals` (recálculo walk-forward a partir de `price_bars`).
+- Estratégia inicial: SMA crossover 20/50, long-only, execução no open de t+1 (anti-look-ahead).
+- Tabelas novas `backtest_runs` e `backtest_trades` (migration só após aprovação).
+- Capital configurável, custos/slippage em bps, curva de equity, benchmark buy-and-hold, métricas completas, estados de dados insuficientes.
+- Endpoints: `POST /backtests/run` (X-Api-Key), `GET /backtests/{run_id}`, `GET /backtests/{run_id}/trades`.
+- Testes unitários (motor puro, incl. teste anti-look-ahead) e de integração (persistência, proteção, reprodutibilidade).
+- Decisões abertas que exigem confirmação do usuário: B1 (strategy_configs agora vs inline), B2 (qtd inteira), B3 (defaults de custo/slippage), B4 (canonizar timeframe/source), B5 (risk-free do Sharpe), B6 (estratégia inicial/interface).
+
+- **Comandos executados e resultados:**
+  - `git status -sb` → `main...origin/main [ahead 1]` (Sprint 3 não enviada)
+- **Resultado entregue:** auditoria da Sprint 3 e plano da Sprint 4 elaborados.
+- **Problemas, riscos ou bloqueios:** push/CI da Sprint 3 pendentes; PAT exposto no remote; candles stale (limitação de ingestão).
+- **Pendências:** aprovação do plano e das decisões B1–B6 antes de qualquer implementação. Push da Sprint 3 + verificação de CI.
+- **Próxima tarefa recomendada:** receber aprovação das decisões B1–B6 e iniciar a Sprint 4 pelo módulo puro `app/domain/backtesting/`.
+- **Data/hora de encerramento:** 2026-06-24 — 11:00
+
+---
+
 **Fim do arquivo AUTOMATION_PROGRESS.md**
