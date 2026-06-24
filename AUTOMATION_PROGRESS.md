@@ -579,4 +579,30 @@ POST /assets/{symbol}/signal/recalculate → recálculo explícito (X-Api-Key)
 
 ---
 
+### Sessão 2026-06-24 — Push da Sprint 3, remoção de token e correção do CI
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** governança — entrega remota da Sprint 3 e saúde do CI
+- **Objetivo da sessão:** enviar a Sprint 3 ao GitHub, remover token exposto e corrigir o CI.
+- **Arquivos alterados:** `.github/workflows/ci.yml`, `AUTOMATION_PROGRESS.md`
+- **Ações executadas:**
+  - Commit `4abaf4f` (doc de auditoria/plano) e push de `main` → `612792c..4abaf4f`. Sprint 3 (`59c078a`) agora no remoto.
+  - Token PAT removido da URL do `origin` (`git remote set-url` para URL limpa). **Pendente: rotacionar o token, pois esteve exposto.**
+  - Verificação do CI via API pública.
+
+#### Bloqueio descoberto (BLOCK-CI-001)
+- O job **Backend CI** falhava **desde a Sprint 1 (`612792c`)** no passo `pytest`.
+- **Causa-raiz:** workflow sem serviço PostgreSQL e sem `alembic upgrade head`; testes de integração exigem banco real. Lint/format/mypy e todo o frontend passavam.
+- Sprint 0 passou no CI por ter apenas testes smoke (sem banco).
+
+#### Correção aplicada
+- `.github/workflows/ci.yml`: adicionado `services.postgres` (postgres:16), `env.DATABASE_URL` e passo `Run migrations` (`alembic upgrade head`) antes do pytest no job backend.
+
+- **Resultado entregue:** Sprint 3 no remoto; token removido da config; correção de CI aplicada e enviada.
+- **Pendências:** confirmar CI verde após o push da correção; rotacionar o token exposto; configurar credential helper/SSH para próximos pushes.
+- **Próxima tarefa recomendada:** confirmar CI verde e então aguardar aprovação das decisões B1–B6 para iniciar a Sprint 4.
+- **Data/hora de encerramento:** 2026-06-24 — 11:30
+
+---
+
 **Fim do arquivo AUTOMATION_PROGRESS.md**
