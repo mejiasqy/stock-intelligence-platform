@@ -5,8 +5,8 @@
 - **Objetivo:** plataforma de análise de ações, ranking de ativos, backtesting e relatórios assistidos por IA para fins educacionais e de portfólio.
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
-- **Sprint atual:** Sprint 4 — Motor de Backtesting (a iniciar)
-- **Última atualização:** 2026-06-23 — 23:00
+- **Sprint atual:** Sprint 5 — API profissional e segurança inicial
+- **Última atualização:** 2026-06-24 — 14:00
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
 
@@ -37,7 +37,7 @@ Inclua estas regras explícitas:
 | Sprint 1 | Dados e banco | validado | Models Asset/PriceBar, Alembic migration, ingestão idempotente, endpoints CRUD+ingestão, seed script, 9 testes | — | pytest 12/12 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 2 | Motor de indicadores | validado | domain/indicators, IndicatorSnapshot, AnalysisService, endpoints GET/POST análise, migration price_bars+snapshots, D17 fixes | — | pytest 62/62 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
-| Sprint 4 | Backtesting | não iniciado | — | Motor de backtest, métricas e auditoria | — |
+| Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | não iniciado | — | Contratos, documentação, validação e proteção inicial | — |
 | Sprint 6 | Dashboard | não iniciado | — | Overview, watchlist, ativo e backtests | — |
 | Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
@@ -119,8 +119,8 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** iniciar planejamento da Sprint 4 — Motor de Backtesting.
-- **Pré-condições:** Sprint 3 validada (91/91 testes ✓).
+- **Tarefa:** iniciar planejamento da Sprint 5 — API profissional e segurança inicial.
+- **Pré-condições:** Sprint 4 validada (124/124 testes ✓, commit 99ea654 no remoto).
 - **Critério de conclusão:** plano aprovado e implementação com testes passando.
 - **Status:** aguardando início
 
@@ -602,6 +602,67 @@ POST /assets/{symbol}/signal/recalculate → recálculo explícito (X-Api-Key)
 - **Pendências:** confirmar CI verde após o push da correção; rotacionar o token exposto; configurar credential helper/SSH para próximos pushes.
 - **Próxima tarefa recomendada:** confirmar CI verde e então aguardar aprovação das decisões B1–B6 para iniciar a Sprint 4.
 - **Data/hora de encerramento:** 2026-06-24 — 11:30
+
+---
+
+### Sessão 2026-06-24 — Implementação da Sprint 4
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 4 — Motor de Backtesting
+- **Objetivo da sessão:** implementar motor de backtest walk-forward, estratégia SMA crossover, métricas, persistência e endpoints.
+
+#### Decisões aprovadas (B1–B6)
+
+| ID | Decisão |
+|---|---|
+| B1 | Parâmetros inline no MVP; `strategy_name`, `strategy_version` e parâmetros imutáveis salvos em `parameters_snapshot_json` de cada run |
+| B2 | Posições inteiras via `floor(capital_disponível / preço_com_custos)`; caixa residual mantido |
+| B3 | 10 bps de custo de transação + 10 bps de slippage por lado (parametrizáveis e persistidos no snapshot) |
+| B4 | `app/core/constants.py` com `DEFAULT_TIMEFRAME = "1d"` e `DEFAULT_SOURCE = "yfinance"`; defaults duplicados removidos |
+| B5 | Taxa livre de risco default 0%, parametrizável e persistida no snapshot |
+| B6 | SMA crossover 20/50 como primeira estratégia; interface `Strategy` Protocol mínima e testada, sem framework excessivo |
+
+#### Arquivos criados
+- `backend/app/core/constants.py`
+- `backend/app/domain/backtesting/__init__.py`
+- `backend/app/domain/backtesting/strategy.py` — Strategy Protocol, SMACrossover, get_strategy()
+- `backend/app/domain/backtesting/engine.py` — BACKTEST_ENGINE_VERSION, BacktestParams, TradeRecord, BacktestResult, run_backtest()
+- `backend/app/domain/backtesting/metrics.py` — BacktestMetrics, compute_metrics(), compute_benchmark()
+- `backend/app/db/models/backtest_run.py`
+- `backend/app/db/models/backtest_trade.py`
+- `backend/app/db/migrations/versions/208463870910_create_backtest_runs_and_trades.py`
+- `backend/app/schemas/backtest.py`
+- `backend/app/services/backtest_service.py`
+- `backend/app/api/routers/backtests.py`
+- `backend/tests/unit/test_backtesting.py` — 23 testes unitários (funções puras)
+- `backend/tests/integration/test_backtests.py` — 13 testes de integração
+
+#### Arquivos alterados
+- `backend/app/db/models/price_bar.py` — usa DEFAULT_TIMEFRAME/DEFAULT_SOURCE de constants
+- `backend/app/db/models/indicator_snapshot.py` — idem
+- `backend/app/db/models/__init__.py` — exporta BacktestRun, BacktestTrade
+- `backend/app/services/analysis_service.py` — usa constants
+- `backend/app/services/ingestion_service.py` — usa constants
+- `backend/app/main.py` — registra router backtests
+- `backend/.github/workflows/ci.yml` — adicionado `services.postgres` (corrige CI broken desde Sprint 1)
+- `AUTOMATION_PROGRESS.md`
+
+#### Garantias do motor contra look-ahead bias
+- Sinal computado no close da barra t → guardado como `pending_signal`.
+- Execução só ocorre no open da barra t+1.
+- `tests/unit/test_backtesting.py::test_engine_no_look_ahead_bias` verifica essa invariante.
+
+- **Comandos executados e resultados:**
+  - `alembic upgrade head` → migration `208463870910` aplicada ✓
+  - `pytest tests/ -v` → **124 passed** em 8.76s ✓
+  - `ruff check .` → All checks passed ✓
+  - `mypy app/` → no issues found in 61 source files ✓
+  - `git push origin main` → `02b8a6a..99ea654` ✓ (commit `99ea654`)
+- **Resultado entregue:** Sprint 4 completa e validada. Todos os entregáveis no remoto.
+- **Problemas, riscos ou bloqueios:** nenhum. Token PAT anterior ainda pendente de revogação (recomendado).
+- **Pendências:** verificar CI verde para commit `99ea654`; rotacionar token PAT se ainda não feito.
+- **Próxima tarefa recomendada:** Sprint 5 — API profissional e segurança inicial.
+- **Data/hora de encerramento:** 2026-06-24 — 14:00
 
 ---
 
