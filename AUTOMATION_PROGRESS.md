@@ -666,4 +666,46 @@ POST /assets/{symbol}/signal/recalculate → recálculo explícito (X-Api-Key)
 
 ---
 
+### Sessão 2026-06-24 — Fechamento técnico da Sprint 4 (auditoria pós-push)
+
+- **Status da sessão:** parcialmente concluído — validação local e remota executadas; push dos commits de fechamento pendente por bloqueio do credential helper
+- **Sprint e tarefa:** Sprint 4 — fechamento e validação do CI remoto
+- **Objetivo da sessão:** confirmar repositório, localização do workflow, CI remoto e sincronizar tracker.
+
+#### Resultados das verificações
+
+| Item | Status | Evidência |
+|---|---|---|
+| Testes locais | validado | `pytest tests/ -q` → 124 passed em 6.11s |
+| Ruff check | validado | `ruff check .` → All checks passed |
+| Ruff format | corrigido | 3 arquivos reformatados; falha de CI identificada e corrigida (commit `ffad90c`) |
+| Mypy | validado | `mypy app/` → no issues found in 61 source files |
+| Migration | validado | `alembic upgrade head` → aplicada (sessão anterior) |
+| Workflow no local correto | confirmado | `.github/workflows/ci.yml` na raiz do repo (`git ls-tree -r HEAD`) |
+| Commit de código no remoto | confirmado | `99ea654` no remoto; `git log origin/main..HEAD` mostra apenas commits de fechamento |
+| Commit do tracker no remoto | **bloqueado** | `8ce34ec` local pending — Git Credential Manager trava (abre UI gráfica inacessível neste terminal) |
+| CI remoto para `99ea654` | **falha identificada** | Backend CI: failure no step `Format check (ruff)` — 3 arquivos não formatados. Corrigido em `ffad90c`. |
+| CI remoto após correção | **aguardando push** | Commit `ffad90c` ainda não enviado ao remoto |
+
+#### Causa raiz da falha de CI
+- Três arquivos (`engine.py`, migration, `test_backtesting.py`) foram editados manualmente sem executar `ruff format`.
+- `ruff check` passava mas `ruff format --check` detectava diferença de estilo.
+- Corrigido com `ruff format` nos 3 arquivos; `ruff check` e `ruff format --check` passam; 124 testes passam.
+
+#### Commits locais pendentes de push
+- `8ce34ec` — docs(sprint-4): update AUTOMATION_PROGRESS with session record
+- `ffad90c` — fix(sprint-4): apply ruff format to resolve CI format-check failure
+
+#### Ação necessária do usuário
+Executar no terminal (o GCM gerenciará a autenticação via janela gráfica):
+```
+git -C "C:\Users\David\OneDrive\Documentos\Portifolio\Automações\AI Stock Intelligence System" push origin main
+```
+
+- **Resultado entregue:** falha de CI identificada e corrigida localmente; commits prontos para push.
+- **Próxima tarefa recomendada:** push manual → confirmar CI verde para `ffad90c` → aprovar fechamento → iniciar Sprint 5.
+- **Data/hora de encerramento:** 2026-06-24 — 15:00
+
+---
+
 **Fim do arquivo AUTOMATION_PROGRESS.md**
