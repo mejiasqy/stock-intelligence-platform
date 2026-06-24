@@ -3,15 +3,13 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.constants import DEFAULT_SOURCE, DEFAULT_TIMEFRAME
 from app.db.models.indicator_snapshot import IndicatorSnapshot
 from app.db.models.price_bar import PriceBar
 from app.domain.indicators.engine import CALCULATION_VERSION, compute
 
 # Janela máxima de candles carregados — suficiente para todos os indicadores (61) com margem.
 _LOAD_LIMIT = 300
-
-_DEFAULT_TIMEFRAME = "1d"
-_DEFAULT_SOURCE = "yfinance"
 
 # Campos que são sobrescritos no upsert (exclui as colunas da constraint de unicidade).
 _UPSERT_FIELDS = (
@@ -45,8 +43,8 @@ _UPSERT_FIELDS = (
 def calculate_and_persist(
     db: Session,
     asset_id: int,
-    timeframe: str = _DEFAULT_TIMEFRAME,
-    source: str = _DEFAULT_SOURCE,
+    timeframe: str = DEFAULT_TIMEFRAME,
+    source: str = DEFAULT_SOURCE,
 ) -> IndicatorSnapshot:
     """Calcula indicadores sobre os candles disponíveis e persiste/atualiza o snapshot.
 

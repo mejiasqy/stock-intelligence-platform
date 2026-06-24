@@ -1,13 +1,11 @@
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.constants import DEFAULT_SOURCE, DEFAULT_TIMEFRAME
 from app.db.models.asset import Asset
 from app.db.models.price_bar import PriceBar
 from app.providers.market_data.yfinance_provider import YFinanceProvider
 from app.schemas.price_bar import IngestionResult
-
-_DEFAULT_TIMEFRAME = "1d"
-_DEFAULT_SOURCE = "yfinance"
 
 
 def get_or_create_asset(db: Session, symbol: str, name: str) -> Asset:
@@ -24,8 +22,8 @@ def ingest_prices(
     symbol: str,
     days: int = 365,
     provider: YFinanceProvider | None = None,
-    timeframe: str = _DEFAULT_TIMEFRAME,
-    source: str = _DEFAULT_SOURCE,
+    timeframe: str = DEFAULT_TIMEFRAME,
+    source: str = DEFAULT_SOURCE,
 ) -> IngestionResult:
     if provider is None:
         provider = YFinanceProvider()
