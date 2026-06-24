@@ -34,7 +34,7 @@ Inclua estas regras explícitas:
 | Sprint | Objetivo | Status | Entregas concluídas | Pendências | Evidência de validação |
 |---|---|---|---|---|---|
 | Sprint 0 | Fundação e governança | validado | Estrutura, backend FastAPI, testes smoke, frontend Next.js, CI, docs, Makefile, Docker Compose, scripts | — | pytest 3/3 ✓, ruff ✓, mypy ✓, npm build ✓, /health ✓, /ready connected ✓, Docker healthy ✓ |
-| Sprint 1 | Dados e banco | não iniciado | — | Modelagem, migrations e ingestão idempotente | — |
+| Sprint 1 | Dados e banco | validado | Models Asset/PriceBar, Alembic migration, ingestão idempotente, endpoints CRUD+ingestão, seed script, 9 testes | — | pytest 12/12 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 2 | Motor de indicadores | não iniciado | — | SMA, EMA, RSI, MACD, Bollinger e snapshots | — |
 | Sprint 3 | Scoring e sinais | não iniciado | — | Score, ranking, reason codes e sinais explicáveis | — |
 | Sprint 4 | Backtesting | não iniciado | — | Motor de backtest, métricas e auditoria | — |
@@ -119,9 +119,9 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** iniciar Sprint 1 — modelar banco de dados e implementar ingestão idempotente de dados históricos.
-- **Pré-condições:** Sprint 0 validada; banco PostgreSQL rodando via Docker; `uv sync` executado.
-- **Critério de conclusão:** entidades `assets` e `price_bars` criadas via migration Alembic; dados históricos ingeridos sem duplicação; endpoint `GET /api/v1/assets/{symbol}/prices` funcional.
+- **Tarefa:** iniciar Sprint 2 — Motor de indicadores técnicos (SMA, EMA, RSI, MACD, Bollinger).
+- **Pré-condições:** Sprint 1 validada; banco com dados históricos via seed; `alembic upgrade head` executado.
+- **Critério de conclusão:** indicadores calculados sobre série histórica real; endpoint de snapshot; testes aprovados.
 - **Status:** não iniciado
 
 ---
@@ -250,6 +250,62 @@ Inclua estas regras explícitas:
 - **Pendências:** aprovação explícita do usuário sobre o plano e as decisões técnicas.
 - **Próxima tarefa recomendada:** receber aprovação do usuário e iniciar implementação pelo `.gitignore`.
 - **Data/hora de encerramento:** 2026-06-23 — 12:30
+
+---
+
+### Sessão 2026-06-23 — Implementação da Sprint 1
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 1 — Dados e banco
+- **Objetivo da sessão:** modelar banco, configurar Alembic, implementar ingestão idempotente e endpoints de ativos.
+- **Arquivos criados:**
+  - `backend/app/db/models/__init__.py`, `asset.py`, `price_bar.py`
+  - `backend/app/db/migrations/env.py`, `alembic.ini`
+  - `backend/app/db/migrations/versions/0fa13a0047fc_create_assets_and_price_bars.py`
+  - `backend/app/schemas/__init__.py`, `asset.py`, `price_bar.py`
+  - `backend/app/providers/__init__.py`, `market_data/__init__.py`
+  - `backend/app/providers/market_data/protocol.py`, `yfinance_provider.py`
+  - `backend/app/services/__init__.py`, `ingestion_service.py`
+  - `backend/app/api/routers/assets.py`
+  - `backend/tests/test_assets.py`
+  - `scripts/seed_demo_data.py`
+  - `docs/data-model.md` (atualizado com schema real)
+- **Arquivos alterados:**
+  - `backend/pyproject.toml` (+ yfinance, pandas, numpy)
+  - `backend/app/main.py` (registro do router assets)
+  - `backend/tests/conftest.py` (yield + autouse clean_db)
+  - `AUTOMATION_PROGRESS.md`
+- **Decisões técnicas:**
+  - D8: yfinance como fonte de dados históricos (interface abstraída via protocolo)
+  - D9: Ativos de demo: PETR4.SA, VALE3.SA, ITUB4.SA, BBDC4.SA, MGLU3.SA
+  - D10: Endpoint de ingestão `POST /api/v1/assets/ingestion/run`
+  - D11: Testes de integração usam banco PostgreSQL real via Docker
+  - Idempotência via `INSERT ... ON CONFLICT DO NOTHING` na constraint `uq_price_bar_asset_ts`
+  - Contagem pré/pós insert para calcular inserted/skipped (evita dependência de rowcount do driver)
+- **Comandos executados e resultados:**
+  - `uv sync` → yfinance 1.4.1, pandas 3.0.3, numpy 2.5.0 instalados
+  - `uv run alembic init app/db/migrations` → diretório criado
+  - `uv run alembic revision --autogenerate -m "create_assets_and_price_bars"` → migration gerada
+  - `uv run alembic upgrade head` → tabelas `assets` e `price_bars` criadas
+  - `uv run pytest tests/ -v` → **12 passed** em 0.99s
+  - `uv run ruff check .` → **All checks passed**
+  - `uv run ruff format --check .` → **31 files already formatted**
+  - `uv run mypy app/` → **no issues found in 27 source files**
+- **Testes aprovados (9 novos):**
+  - test_list_assets_empty ✓
+  - test_create_asset ✓
+  - test_create_asset_duplicate (409) ✓
+  - test_get_prices_asset_not_found (404) ✓
+  - test_get_prices_empty_history ✓
+  - test_ingestion_inserts_data (3 inseridos) ✓
+  - test_ingestion_idempotent (0 inseridos, 3 ignorados) ✓
+  - test_ingestion_empty_provider ✓
+  - test_ingestion_invalid_symbol ✓
+- **Resultado entregue:** Sprint 1 completa e validada localmente.
+- **Problemas, riscos ou bloqueios:** nenhum.
+- **Pendências:** push para GitHub e verificação do CI.
+- **Próxima tarefa recomendada:** Sprint 2 — Motor de indicadores técnicos.
+- **Data/hora de encerramento:** 2026-06-23 — 20:00
 
 ---
 
