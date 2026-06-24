@@ -32,13 +32,13 @@ class BacktestParams:
 class TradeRecord:
     entry_timestamp: Any  # pd.Timestamp
     exit_timestamp: Any
-    entry_price: float       # open do bar de execução (sem slippage)
-    exit_price: float        # open/close do bar de saída (sem slippage)
+    entry_price: float  # open do bar de execução (sem slippage)
+    exit_price: float  # open/close do bar de saída (sem slippage)
     executed_entry_price: float  # com slippage
     executed_exit_price: float
     quantity: int
-    gross_pnl: float         # sem custos
-    net_pnl: float           # após custos e slippage
+    gross_pnl: float  # sem custos
+    net_pnl: float  # após custos e slippage
     fees_paid: float
     reason_entry: str
     reason_exit: str
@@ -46,11 +46,11 @@ class TradeRecord:
 
 @dataclass
 class BacktestResult:
-    status: str              # "completed" | "insufficient_data"
+    status: str  # "completed" | "insufficient_data"
     params: BacktestParams
     strategy_name: str
     strategy_version: str
-    data_start: Any | None   # pd.Timestamp
+    data_start: Any | None  # pd.Timestamp
     data_end: Any | None
     trades: list[TradeRecord] = field(default_factory=list)
     equity_curve: list[dict] = field(default_factory=list)

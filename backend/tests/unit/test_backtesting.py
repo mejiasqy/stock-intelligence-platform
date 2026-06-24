@@ -1,6 +1,5 @@
 """Testes unitários do motor de backtesting — funções puras sem banco."""
 
-
 import pandas as pd
 import pytest
 
