@@ -6,6 +6,10 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
+
+API_KEY = settings.api_secret_key
+
 
 @pytest.fixture
 def sample_ohlcv() -> pd.DataFrame:
@@ -24,35 +28,52 @@ def sample_ohlcv() -> pd.DataFrame:
 def test_list_assets_empty(client: TestClient) -> None:
     response = client.get("/api/v1/assets")
     assert response.status_code == 200
-    assert response.json() == []
+    body = response.json()
+    assert body["items"] == []
+    assert body["pagination"]["total"] == 0
 
 
 def test_create_asset(client: TestClient) -> None:
     payload = {"symbol": "TEST3.SA", "name": "Test Corp", "exchange": "B3"}
-    response = client.post("/api/v1/assets", json=payload)
+    response = client.post("/api/v1/assets", json=payload, headers={"X-Api-Key": API_KEY})
     assert response.status_code == 201
     data = response.json()
     assert data["symbol"] == "TEST3.SA"
     assert data["exchange"] == "B3"
 
 
+def test_create_asset_requires_api_key(client: TestClient) -> None:
+    payload = {"symbol": "NOKEY.SA", "name": "No Key Corp"}
+    response = client.post("/api/v1/assets", json=payload)
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
 def test_create_asset_duplicate(client: TestClient) -> None:
     payload = {"symbol": "DUP3.SA", "name": "Dup Corp"}
-    client.post("/api/v1/assets", json=payload)
-    response = client.post("/api/v1/assets", json=payload)
+    client.post("/api/v1/assets", json=payload, headers={"X-Api-Key": API_KEY})
+    response = client.post("/api/v1/assets", json=payload, headers={"X-Api-Key": API_KEY})
     assert response.status_code == 409
+    assert response.json()["error"]["code"] == "asset_already_exists"
 
 
 def test_get_prices_asset_not_found(client: TestClient) -> None:
     response = client.get("/api/v1/assets/NOTFOUND.SA/prices")
     assert response.status_code == 404
+    assert response.json()["error"]["code"] == "asset_not_found"
 
 
 def test_get_prices_empty_history(client: TestClient) -> None:
-    client.post("/api/v1/assets", json={"symbol": "EMPTY3.SA", "name": "Empty Corp"})
+    client.post(
+        "/api/v1/assets",
+        json={"symbol": "EMPTY3.SA", "name": "Empty Corp"},
+        headers={"X-Api-Key": API_KEY},
+    )
     response = client.get("/api/v1/assets/EMPTY3.SA/prices")
     assert response.status_code == 200
-    assert response.json() == []
+    body = response.json()
+    assert body["items"] == []
+    assert body["pagination"]["total"] == 0
 
 
 def test_ingestion_inserts_data(client: TestClient, sample_ohlcv: pd.DataFrame) -> None:
@@ -63,6 +84,7 @@ def test_ingestion_inserts_data(client: TestClient, sample_ohlcv: pd.DataFrame) 
         response = client.post(
             "/api/v1/assets/ingestion/run",
             json={"symbol": "INGEST3.SA", "days": 365},
+            headers={"X-Api-Key": API_KEY},
         )
     assert response.status_code == 200
     data = response.json()
@@ -70,15 +92,25 @@ def test_ingestion_inserts_data(client: TestClient, sample_ohlcv: pd.DataFrame) 
     assert data["skipped"] == 0
 
 
+def test_ingestion_requires_api_key(client: TestClient) -> None:
+    response = client.post("/api/v1/assets/ingestion/run", json={"symbol": "NOKEY.SA", "days": 30})
+    assert response.status_code == 401
+
+
 def test_ingestion_idempotent(client: TestClient, sample_ohlcv: pd.DataFrame) -> None:
     with patch(
         "app.services.ingestion_service.YFinanceProvider.fetch_ohlcv",
         return_value=sample_ohlcv,
     ):
-        client.post("/api/v1/assets/ingestion/run", json={"symbol": "IDEM3.SA", "days": 365})
+        client.post(
+            "/api/v1/assets/ingestion/run",
+            json={"symbol": "IDEM3.SA", "days": 365},
+            headers={"X-Api-Key": API_KEY},
+        )
         response = client.post(
             "/api/v1/assets/ingestion/run",
             json={"symbol": "IDEM3.SA", "days": 365},
+            headers={"X-Api-Key": API_KEY},
         )
     data = response.json()
     assert data["inserted"] == 0
@@ -94,6 +126,7 @@ def test_ingestion_empty_provider(client: TestClient) -> None:
         response = client.post(
             "/api/v1/assets/ingestion/run",
             json={"symbol": "NODATA3.SA", "days": 30},
+            headers={"X-Api-Key": API_KEY},
         )
     assert response.status_code == 200
     assert response.json()["inserted"] == 0
@@ -108,6 +141,7 @@ def test_ingestion_invalid_symbol(client: TestClient) -> None:
         response = client.post(
             "/api/v1/assets/ingestion/run",
             json={"symbol": "XXXINVALID.SA", "days": 10},
+            headers={"X-Api-Key": API_KEY},
         )
     assert response.status_code == 200
     assert response.json()["inserted"] == 0

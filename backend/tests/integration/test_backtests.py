@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 
+API_KEY = settings.api_secret_key
+
 
 def _ohlcv(n: int, start_price: float = 10.0, step: float = 0.0) -> pd.DataFrame:
     dates = pd.date_range("2023-01-02", periods=n, freq="B", tz="UTC")
@@ -24,7 +26,6 @@ def _ohlcv(n: int, start_price: float = 10.0, step: float = 0.0) -> pd.DataFrame
 
 
 def _ohlcv_with_crossover(n: int = 80) -> pd.DataFrame:
-    """Série com subida depois queda para forçar um crossover SMA 20/50."""
     prices = [10.0] * 25 + [30.0] * 30 + [10.0] * (n - 55)
     prices = prices[:n]
     dates = pd.date_range("2023-01-02", periods=len(prices), freq="B", tz="UTC")
@@ -45,10 +46,11 @@ def _ingest(client: TestClient, symbol: str, df: pd.DataFrame) -> None:
         "app.services.ingestion_service.YFinanceProvider.fetch_ohlcv",
         return_value=df,
     ):
-        client.post("/api/v1/assets/ingestion/run", json={"symbol": symbol, "days": 365})
-
-
-API_KEY = settings.api_secret_key
+        client.post(
+            "/api/v1/assets/ingestion/run",
+            json={"symbol": symbol, "days": 365},
+            headers={"X-Api-Key": API_KEY},
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +60,8 @@ API_KEY = settings.api_secret_key
 
 def test_run_backtest_unauthorized(client: TestClient) -> None:
     r = client.post("/api/v1/backtests/run", json={"symbol": "TEST.SA"})
-    assert r.status_code == 422  # Header obrigatório ausente
+    assert r.status_code == 401
+    assert r.json()["error"]["code"] == "unauthorized"
 
 
 def test_run_backtest_wrong_key(client: TestClient) -> None:
@@ -77,7 +80,7 @@ def test_run_backtest_asset_not_found(client: TestClient) -> None:
         headers={"X-Api-Key": API_KEY},
     )
     assert r.status_code == 404
-    assert r.json()["detail"] == "asset_not_found"
+    assert r.json()["error"]["code"] == "asset_not_found"
 
 
 def test_run_backtest_unknown_strategy(client: TestClient) -> None:
@@ -88,6 +91,7 @@ def test_run_backtest_unknown_strategy(client: TestClient) -> None:
         headers={"X-Api-Key": API_KEY},
     )
     assert r.status_code == 422
+    assert r.json()["error"]["code"] == "unknown_strategy"
 
 
 def test_run_backtest_insufficient_data(client: TestClient) -> None:
@@ -115,7 +119,6 @@ def test_run_backtest_creates_run(client: TestClient) -> None:
     assert data["strategy_name"] == "sma_crossover"
     assert data["engine_version"] == "1.0.0"
     assert data["initial_capital"] == 50000.0
-    assert "parameters_snapshot_json" in data
     snap = data["parameters_snapshot_json"]
     assert snap["transaction_cost_bps"] == 10
     assert snap["slippage_bps"] == 10
@@ -141,6 +144,58 @@ def test_run_backtest_parameters_persisted(client: TestClient) -> None:
     assert snap["risk_free_rate_pct"] == 2.5
 
 
+def test_run_backtest_invalid_dates(client: TestClient) -> None:
+    _ingest(client, "DATES.SA", _ohlcv_with_crossover())
+    r = client.post(
+        "/api/v1/backtests/run",
+        json={"symbol": "DATES.SA", "start_date": "2024-12-31", "end_date": "2024-01-01"},
+        headers={"X-Api-Key": API_KEY},
+    )
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "validation_error"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/backtests
+# ---------------------------------------------------------------------------
+
+
+def test_list_backtests_empty(client: TestClient) -> None:
+    r = client.get("/api/v1/backtests")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["items"] == []
+    assert body["pagination"]["total"] == 0
+
+
+def test_list_backtests_filter_by_symbol(client: TestClient) -> None:
+    _ingest(client, "LST1.SA", _ohlcv_with_crossover())
+    _ingest(client, "LST2.SA", _ohlcv_with_crossover())
+    client.post("/api/v1/backtests/run", json={"symbol": "LST1.SA"}, headers={"X-Api-Key": API_KEY})
+    client.post("/api/v1/backtests/run", json={"symbol": "LST2.SA"}, headers={"X-Api-Key": API_KEY})
+
+    r = client.get("/api/v1/backtests?symbol=LST1.SA")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["pagination"]["total"] == 1
+    assert body["items"][0]["strategy_name"] == "sma_crossover"
+
+
+def test_list_backtests_pagination_meta(client: TestClient) -> None:
+    _ingest(client, "PMETA.SA", _ohlcv_with_crossover())
+    client.post(
+        "/api/v1/backtests/run", json={"symbol": "PMETA.SA"}, headers={"X-Api-Key": API_KEY}
+    )
+    client.post(
+        "/api/v1/backtests/run", json={"symbol": "PMETA.SA"}, headers={"X-Api-Key": API_KEY}
+    )
+
+    r = client.get("/api/v1/backtests?limit=1&offset=0")
+    body = r.json()
+    assert body["pagination"]["total"] == 2
+    assert len(body["items"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/backtests/{run_id}
 # ---------------------------------------------------------------------------
@@ -149,6 +204,7 @@ def test_run_backtest_parameters_persisted(client: TestClient) -> None:
 def test_get_backtest_run_not_found(client: TestClient) -> None:
     r = client.get("/api/v1/backtests/99999")
     assert r.status_code == 404
+    assert r.json()["error"]["code"] == "backtest_run_not_found"
 
 
 def test_get_backtest_run_returns_data(client: TestClient) -> None:
@@ -172,9 +228,10 @@ def test_get_backtest_run_returns_data(client: TestClient) -> None:
 def test_get_backtest_trades_not_found(client: TestClient) -> None:
     r = client.get("/api/v1/backtests/99999/trades")
     assert r.status_code == 404
+    assert r.json()["error"]["code"] == "backtest_run_not_found"
 
 
-def test_get_backtest_trades_returns_list(client: TestClient) -> None:
+def test_get_backtest_trades_returns_paginated(client: TestClient) -> None:
     _ingest(client, "TRAD.SA", _ohlcv_with_crossover())
     run_r = client.post(
         "/api/v1/backtests/run",
@@ -184,7 +241,9 @@ def test_get_backtest_trades_returns_list(client: TestClient) -> None:
     run_id = run_r.json()["id"]
     r = client.get(f"/api/v1/backtests/{run_id}/trades")
     assert r.status_code == 200
-    assert isinstance(r.json(), list)
+    body = r.json()
+    assert isinstance(body["items"], list)
+    assert "pagination" in body
 
 
 # ---------------------------------------------------------------------------

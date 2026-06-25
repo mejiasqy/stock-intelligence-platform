@@ -1,19 +1,14 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
-from app.core.config import settings
+from app.api.dependencies import get_db, require_api_key
+from app.core.rate_limiter import limiter
 from app.db.models.asset import Asset
 from app.db.models.indicator_snapshot import IndicatorSnapshot
 from app.schemas.indicator_snapshot import IndicatorSnapshotRead
 from app.services.analysis_service import calculate_and_persist
 
 router = APIRouter(prefix="/assets", tags=["analysis"])
-
-
-def _require_api_key(x_api_key: str = Header(..., alias="X-Api-Key")) -> None:
-    if x_api_key != settings.api_secret_key:
-        raise HTTPException(status_code=401, detail="invalid_api_key")
 
 
 def _get_asset_or_404(symbol: str, db: Session) -> Asset:
@@ -23,13 +18,21 @@ def _get_asset_or_404(symbol: str, db: Session) -> Asset:
     return asset
 
 
-@router.get("/{symbol}/analysis", response_model=IndicatorSnapshotRead)
-def get_analysis(symbol: str, db: Session = Depends(get_db)) -> IndicatorSnapshot:
-    """Retorna o snapshot de indicadores mais recente para o ativo.
-
-    Somente leitura — não dispara recálculo.
-    Retorna 404 se nenhum snapshot foi calculado ainda.
-    """
+@router.get(
+    "/{symbol}/analysis",
+    response_model=IndicatorSnapshotRead,
+    summary="Indicadores técnicos do ativo",
+    description="Retorna o snapshot de indicadores mais recente. Somente leitura.",
+    responses={
+        404: {"description": "Ativo não encontrado ou snapshot indisponível"},
+    },
+)
+@limiter.limit("30/minute")
+def get_analysis(
+    request: Request,
+    symbol: str,
+    db: Session = Depends(get_db),
+) -> IndicatorSnapshot:
     asset = _get_asset_or_404(symbol, db)
     snapshot = (
         db.query(IndicatorSnapshot)
@@ -45,13 +48,14 @@ def get_analysis(symbol: str, db: Session = Depends(get_db)) -> IndicatorSnapsho
 @router.post(
     "/{symbol}/analysis/recalculate",
     response_model=IndicatorSnapshotRead,
-    dependencies=[Depends(_require_api_key)],
+    dependencies=[Depends(require_api_key)],
+    summary="Recalcular indicadores do ativo",
+    description="Força recálculo e persistência do snapshot. Idempotente. Requer `X-Api-Key`.",
+    responses={
+        401: {"description": "API key inválida ou ausente"},
+        404: {"description": "Ativo não encontrado"},
+    },
 )
 def recalculate_analysis(symbol: str, db: Session = Depends(get_db)) -> IndicatorSnapshot:
-    """Força recálculo e persistência do snapshot de indicadores.
-
-    Requer o header `X-Api-Key` com o valor de `API_SECRET_KEY`.
-    Idempotente: sobrescreve o snapshot anterior para o mesmo ativo/timeframe/source.
-    """
     asset = _get_asset_or_404(symbol, db)
     return calculate_and_persist(db, asset_id=asset.id)

@@ -109,8 +109,16 @@ Consulte `.env.example` para a lista completa. As variáveis obrigatórias para 
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `DATABASE_URL` | `postgresql://...` | URL do PostgreSQL |
-| `API_SECRET_KEY` | `change-me-in-production` | Chave da API |
+| `API_SECRET_KEY` | `change-me-in-production` | Chave dos endpoints administrativos (`X-Api-Key`) |
 | `ENVIRONMENT` | `development` | Ambiente de execução |
+| `CORS_ORIGINS` | `http://localhost:3000` | Origins permitidas (separadas por vírgula) |
+| `CORS_METHODS` | `GET,POST,OPTIONS` | Métodos HTTP permitidos pelo CORS |
+| `CORS_ALLOW_HEADERS` | `Content-Type,X-Api-Key,X-Request-ID` | Headers permitidos pelo CORS |
+| `PAGINATION_DEFAULT_LIMIT` | `50` | Itens por página padrão |
+| `PAGINATION_MAX_LIMIT` | `100` | Máximo geral de itens por página |
+| `PAGINATION_MAX_LIMIT_TRADES` | `500` | Máximo de trades por página |
+| `RATE_LIMIT_DEFAULT` | `120/minute` | Rate limit geral por IP |
+| `RATE_LIMIT_BACKTESTS` | `10/minute` | Rate limit para execução de backtests |
 
 ---
 
