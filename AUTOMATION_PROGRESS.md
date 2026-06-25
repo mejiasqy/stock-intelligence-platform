@@ -39,7 +39,7 @@ Inclua estas regras explícitas:
 | Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
-| Sprint 6 | Dashboard | em andamento | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | push e CI remoto pendentes | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓, screenshots gerados ✓ |
+| Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, CI remoto verde (run 28192259475) ✓ |
 | Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
@@ -1007,9 +1007,9 @@ uv run mypy app/
 
 **Status de entrega:**
 - Validações locais: todas aprovadas (ver tabela acima)
-- Push: **pendente** — aguarda execução manual pelo usuário (GCM requer autenticação gráfica)
-- CI remoto: **não verificado** — confirmar após push em https://github.com/mejiasqy/stock-intelligence-platform/actions
-- Sprint 6 será marcada como `validado` somente após CI verde confirmado
+- Push: concluído — `ddcc9bd..e3be91f main -> main`
+- CI remoto: **verde** — run [28192259475](https://github.com/mejiasqy/stock-intelligence-platform/actions/runs/28192259475), Backend CI e Frontend CI — todos os steps passando
+- Sprint 6: **validado**
 
 **Commits pendentes de push (3):**
 - `5a332b1` — feat(sprint-5): professionalize API contracts and security controls
