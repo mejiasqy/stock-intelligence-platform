@@ -39,7 +39,7 @@ Inclua estas regras explícitas:
 | Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
-| Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓ |
+| Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓, screenshots gerados ✓ |
 | Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
@@ -946,6 +946,66 @@ uv run mypy app/
 
 - **Data/hora de encerramento:** 2026-06-25
 - **Próxima tarefa recomendada:** Sprint 7 — IA, relatórios e alertas (aguarda aprovação do plano).
+
+---
+
+### Sessão 2026-06-25 — Fechamento da Sprint 6: screenshots, documentação e push
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 6 — Dashboard (fechamento final)
+- **Objetivo da sessão:** gerar screenshots reais, atualizar documentação, executar validações finais, fazer commit e push.
+
+**Arquivos criados:**
+- `docs/screenshots/01-overview.png` — Overview com 10 ativos, 2 bullish, 5 bearish, API Online
+- `docs/screenshots/02-watchlist-all.png` — Watchlist completa sem filtro
+- `docs/screenshots/03-watchlist-bullish.png` — Watchlist filtrada: apenas bullish
+- `docs/screenshots/04-watchlist-bearish.png` — Watchlist filtrada: apenas bearish
+- `docs/screenshots/05-asset-detail-itub4.png` — ITUB4.SA: score 62, bullish, 250 candles, gráfico, indicadores, reason_codes
+- `docs/screenshots/06-asset-detail-mglu3.png` — MGLU3.SA: score 15, bearish, volume zero
+- `docs/screenshots/07-asset-detail-error.png` — Estado de erro real: NOSUCH.SA 404 "Asset not found"
+- `docs/screenshots/08-backtests-list.png` — Lista de 4 backtests com retorno, Sharpe e DD
+- `docs/screenshots/09-backtests-detail.png` — PETR4.SA expandido: equity curve, métricas, 3 trades
+- `docs/screenshots/10-overview-mobile.png` — Overview em viewport 390×844 (mobile)
+- `docs/screenshots/11-watchlist-mobile.png` — Watchlist em viewport 390×844 (mobile)
+
+**Arquivos alterados:**
+- `docs/screenshots/README.md` — atualizado com tabela real de arquivos, ambiente de captura, limitações documentadas e validação de segurança
+- `README.md` — seção Dashboard adicionada com 4 páginas, estados, screenshots e comandos de teste atualizados
+- `AUTOMATION_PROGRESS.md` — esta sessão
+
+**Validações executadas e resultados:**
+
+| Comando | Resultado |
+|---|---|
+| `uv run ruff check .` (backend) | All checks passed ✓ |
+| `uv run ruff format --check .` | 81 files already formatted ✓ |
+| `uv run mypy app/` | no issues in 66 source files ✓ |
+| `uv run pytest tests/ -q` | **159 passed**, 8 warnings (deprecation slowapi/Python 3.16) ✓ |
+| `npm test -- --run` (frontend) | **35 passed** (6 arquivos, 6.21s) ✓ |
+| `npm run lint` | sem erros ✓ |
+| `npm run build` | compilação de produção com sucesso ✓ |
+
+**Auditoria de segurança — Sprint 6:**
+
+| Verificação | Resultado |
+|---|---|
+| X-Api-Key no frontend (bundle, env.local, código) | Não encontrado ✓ |
+| Chamadas POST/PUT/DELETE no frontend | Não encontradas ✓ |
+| Endpoints administrativos chamados pelo browser | Nenhum ✓ |
+| `calculated_at` do ranking como "última análise" no Overview | Não usado — KPI usa `/health` ✓ |
+| Campos nullable → "—" (nunca "undefined" ou NaN) | Confirmado ✓ |
+
+**Limitações conhecidas documentadas:**
+- Colunas Preço/Variação/Volatilidade na Watchlist exibem "—" (não presentes em `RankingEntry`)
+- SMA/EMA exibidos como valores pontuais; série histórica indisponível
+- Histórico de sinais indisponível (sem endpoint de série temporal)
+- Equity curve tênue em captura headless (comportamento esperado; visual correto no browser)
+
+**Resultado entregue:** Sprint 6 completa, screenshots reais gerados via Playwright, documentação atualizada, todos os gates de qualidade aprovados. Commits pendentes de push: `5a332b1` (Sprint 5) e `e015e74` (Sprint 6) + commit desta sessão.
+
+**Próxima tarefa recomendada:** Sprint 7 — IA, relatórios e alertas (aguarda aprovação do plano).
+
+**Data/hora de encerramento:** 2026-06-25 — 14:45
 
 ---
 

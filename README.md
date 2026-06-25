@@ -23,11 +23,12 @@ Plataforma de análise de ações, monitoramento de mercado, ranking de ativos, 
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | Python 3.14, FastAPI, SQLAlchemy 2, Alembic |
+| Backend | Python 3.14, FastAPI, SQLAlchemy 2, Alembic, pandas, numpy |
 | Banco | PostgreSQL 16 |
-| Frontend | Next.js 15, TypeScript, Tailwind CSS |
+| Frontend | Next.js 16, TypeScript, Tailwind CSS v4, TanStack Query v5, Recharts |
+| Testes | pytest (backend) · Vitest + React Testing Library (frontend) |
 | Infra | Docker Compose, GitHub Actions |
-| Qualidade | Ruff, mypy, pytest, ESLint, TypeScript |
+| Qualidade | Ruff, mypy, ESLint, TypeScript strict |
 
 ---
 
@@ -90,14 +91,48 @@ make verify     # Verifica pré-requisitos do ambiente
 
 ---
 
+## Dashboard (Sprint 6)
+
+O dashboard consome exclusivamente endpoints de leitura da API — nenhuma chave administrativa é enviada ou exposta pelo browser.
+
+| Página | URL | O que mostra |
+|---|---|---|
+| Overview | `/` | KPIs: total de ativos, contagem bullish/bearish, status da API; ranking top 10 por score |
+| Watchlist | `/watchlist` | Tabela de todos os sinais com filtros (alta/baixa/neutro/insuficiente) |
+| Detalhe do ativo | `/assets/{symbol}` | Gráfico de fechamento histórico, indicadores técnicos pontuais, composição do score, reason_codes |
+| Backtests | `/backtests` | Lista de execuções com curva de patrimônio, métricas, parâmetros e trades simulados |
+
+Todos os estados implementados: **carregando**, **vazio**, **erro** (com `request_id` discreto), **insufficient_data** e **sucesso**.
+
+### Screenshots reais (dados de demonstração)
+
+| Tela | Preview |
+|---|---|
+| Overview | `docs/screenshots/01-overview.png` |
+| Watchlist | `docs/screenshots/02-watchlist-all.png` |
+| Watchlist filtrada (bullish) | `docs/screenshots/03-watchlist-bullish.png` |
+| Detalhe ITUB4.SA (bullish, score 62) | `docs/screenshots/05-asset-detail-itub4.png` |
+| Detalhe MGLU3.SA (bearish, score 15) | `docs/screenshots/06-asset-detail-mglu3.png` |
+| Estado de erro (ativo não encontrado) | `docs/screenshots/07-asset-detail-error.png` |
+| Backtests — lista | `docs/screenshots/08-backtests-list.png` |
+| Backtests — PETR4.SA expandido | `docs/screenshots/09-backtests-detail.png` |
+
+Consulte [`docs/screenshots/README.md`](docs/screenshots/README.md) para detalhes de captura e limitações conhecidas.
+
+---
+
 ## Testes
 
 ```bash
-# Backend
-cd backend && uv run pytest tests/ -v --cov=app
+# Backend (159 testes: unit + integração com banco real)
+cd backend && uv run pytest tests/ -v
 
-# Frontend
-cd frontend && npm run lint && npx tsc --noEmit && npm run build
+# Frontend (35 testes Vitest: componentes, API layer, contratos)
+cd frontend && npm test
+
+# Lint e typecheck
+cd backend && uv run ruff check . && uv run mypy app/
+cd frontend && npm run lint && npx tsc --noEmit
 ```
 
 ---

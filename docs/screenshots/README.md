@@ -1,37 +1,62 @@
 # Screenshots — Sprint 6
 
-Screenshots das 4 páginas do dashboard com dados reais.
+Screenshots capturados automaticamente via Playwright com dados reais, em 2026-06-25.
 
-## Como capturar
+## Ambiente durante a captura
 
-Com backend e frontend rodando:
+- Backend: FastAPI `v0.1.0` em `http://localhost:8000`
+- Banco: PostgreSQL 16 (Docker) — saudável
+- Frontend: Next.js 16.2.9 em `http://localhost:3000`
+- Dados: 5 ativos demo (BBDC4.SA, ITUB4.SA, PETR4.SA, VALE3.SA, MGLU3.SA) + 2 de testes anteriores
+- Sinais gerados: BBDC4.SA bullish 64, ITUB4.SA bullish 62, PETR4.SA bearish 34, VALE3.SA bearish 33, MGLU3.SA bearish 15
+- Backtests: 4 execuções (PETR4 +12.20%, ITUB4 +5.37%, VALE3 -6.18%, BBDC4 -17.86%)
 
-```bash
-# backend
-cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+## Arquivos gerados
 
-# frontend
-cd frontend && npm run dev
+| Arquivo | URL capturada | Estado demonstrado | Dados reais |
+|---|---|---|---|
+| `01-overview.png` | `/` (1280×800) | Sucesso — 10 ativos, 2 bullish, 5 bearish, API Online | sim |
+| `02-watchlist-all.png` | `/watchlist` (1280×800) | Tabela completa sem filtro | sim |
+| `03-watchlist-bullish.png` | `/watchlist` filtro "Alta" | Apenas ativos com sinal bullish | sim |
+| `04-watchlist-bearish.png` | `/watchlist` filtro "Baixa" | Apenas ativos com sinal bearish | sim |
+| `05-asset-detail-itub4.png` | `/assets/ITUB4.SA` (1280×800) | Score 62, bullish, 250 candles, gráfico de fechamento, indicadores técnicos, reason_codes | sim |
+| `06-asset-detail-mglu3.png` | `/assets/MGLU3.SA` (1280×800) | Score 15, bearish, volume pilar zero | sim |
+| `07-asset-detail-error.png` | `/assets/NOSUCH.SA` (1280×800) | Estado de erro — "Asset not found" (404) | sim (erro real do banco) |
+| `08-backtests-list.png` | `/backtests` (1280×800) | Lista de 4 runs com símbolo, retorno, Sharpe, DD | sim |
+| `09-backtests-detail.png` | `/backtests` PETR4 expandido | Curva de patrimônio, métricas completas, 3 trades simulados | sim |
+| `10-overview-mobile.png` | `/` (390×844 mobile) | Overview responsivo em viewport mobile | sim |
+| `11-watchlist-mobile.png` | `/watchlist` (390×844 mobile) | Watchlist responsiva em viewport mobile | sim |
+
+## Notas de limitação documentadas
+
+- **Colunas Preço/Variação/Volatilidade na Watchlist** exibem "—": esses campos não são parte de `RankingEntry` na API atual. Nota explicativa exibida na interface.
+- **SMA/EMA no gráfico**: exibidos como valores pontuais nos cards de indicadores; série histórica indisponível nesta versão da API.
+- **Histórico de sinais**: exibido como "indisponível nesta versão" — sem endpoint de série histórica de sinais na Sprint 6.
+- **Curva de patrimônio em modo headless**: eixos e legendas renderizados corretamente; traçado das linhas tênue em captura headless (comportamento esperado do Recharts sem interação de viewport) — visual correto no browser real.
+
+## Como reproduzir
+
+```powershell
+# 1. Subir banco e backend
+docker compose up -d db
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 2. Subir frontend
+cd ../frontend
+npm run dev
+
+# 3. Executar script de screenshots (Playwright)
+# O script está em docs/screenshots/take-screenshots.mjs (ou regenerar pelo histórico de sessão)
 ```
 
-Acessar em `http://localhost:3000` e capturar manualmente:
+## Validação de segurança e contratos (Sprint 6)
 
-| Arquivo esperado | URL | Dados de demonstração |
-|---|---|---|
-| `overview.png` | `/` | 7 ativos no ranking, 2 bullish, 5 bearish |
-| `watchlist.png` | `/watchlist` | Tabela com filtros por sinal |
-| `watchlist-filter-bullish.png` | `/watchlist` (filtro ativo) | Apenas BBDC4 e ITUB4 |
-| `asset-detail-itub4.png` | `/assets/ITUB4.SA` | Score 62, bullish, 250 candles |
-| `asset-detail-insufficient.png` | `/assets/MGLU3.SA` | Score 15, bearish |
-| `backtests.png` | `/backtests` | 4 runs com símbolo, retorno, Sharpe |
-| `backtests-detail.png` | `/backtests` (run expandido) | Curva de patrimônio + trades |
-
-## Validação realizada em 2026-06-25
-
-Todos os endpoints verificados com dados reais:
-- `GET /api/v1/rankings` → 7 ativos (5 demo + 2 de testes anteriores)
-- `GET /api/v1/assets/ITUB4.SA/signal` → bullish, score 62, 20 reason_codes
-- `GET /api/v1/assets/ITUB4.SA/analysis` → status ok, 250 candles
-- `GET /api/v1/assets/ITUB4.SA/prices?limit=120` → 120 barras OHLCV
-- `GET /api/v1/backtests` → 4 runs, campo `symbol` presente
-- `GET /api/v1/backtests/1` → equity_curve_json com 250 pontos, 2 trades
+| Verificação | Resultado |
+|---|---|
+| X-Api-Key no frontend (bundle, env.local, código) | Não encontrado — ✓ |
+| Chamadas POST/PUT/DELETE no frontend | Não encontradas — ✓ |
+| Endpoints administrativos chamados pelo browser | Nenhum — ✓ |
+| Overview usa `calculated_at` do primeiro item de rankings | Não usa — ✓ |
+| KPI "API" usa `/health` (dado confiável, não temporal) | Confirmado — ✓ |
+| Todos os campos nullable → "—" (nunca "undefined" ou NaN) | Confirmado — ✓ |

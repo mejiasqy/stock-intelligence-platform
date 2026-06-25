@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
 from app.db.session import SessionLocal
 from app.services.ingestion_service import ingest_prices
