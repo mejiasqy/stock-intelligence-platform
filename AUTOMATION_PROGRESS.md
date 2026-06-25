@@ -39,7 +39,7 @@ Inclua estas regras explícitas:
 | Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
-| Sprint 6 | Dashboard | não iniciado | — | Overview, watchlist, ativo e backtests | — |
+| Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓ |
 | Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
@@ -119,10 +119,10 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** iniciar planejamento da Sprint 5 — API profissional e segurança inicial.
-- **Pré-condições:** Sprint 4 validada (124/124 testes ✓, commit 99ea654 no remoto).
-- **Critério de conclusão:** plano aprovado e implementação com testes passando.
-- **Status:** aguardando início
+- **Tarefa:** Sprint 7 — IA, relatórios e alertas.
+- **Pré-condições:** Sprint 6 validada (pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓).
+- **Critério de conclusão:** provider de LLM desacoplado, fallback determinístico, alerta por 1 canal, job agendado.
+- **Status:** aguardando aprovação do plano
 
 ---
 
@@ -882,6 +882,70 @@ uv run mypy app/
 
 - **Data/hora de encerramento:** 2026-06-25 — Sprint 5 validada
 - **Próxima tarefa recomendada:** Sprint 6 — Dashboard (após aprovação do plano).
+
+---
+
+### Sessão 2026-06-25 — Sprint 6: Dashboard
+
+- **Status da sessão:** concluído
+- **Sprint e tarefa:** Sprint 6 — Dashboard
+- **Objetivo da sessão:** entregar as 4 páginas do dashboard consumindo dados reais da API.
+
+**Arquivos criados:**
+- `frontend/src/types/api.ts` — tipos TypeScript derivados dos contratos reais
+- `frontend/src/lib/query-client.ts` — QueryClient singleton TanStack Query
+- `frontend/src/providers.tsx` — QueryClientProvider
+- `frontend/src/components/ui/StatusBadge.tsx` — bullish/bearish/neutral/insufficient_data
+- `frontend/src/components/ui/ScoreBar.tsx` — score 0–100 com valor numérico e label textual
+- `frontend/src/components/ui/LoadingSpinner.tsx`
+- `frontend/src/components/ui/EmptyState.tsx`
+- `frontend/src/components/ui/ErrorState.tsx` — com request_id discreto
+- `frontend/src/components/charts/PriceChart.tsx` — linha de fechamento real
+- `frontend/src/components/charts/EquityCurveChart.tsx` — equity vs buy-and-hold
+- `frontend/src/components/layout/Navbar.tsx`
+- `frontend/src/components/layout/Disclaimer.tsx` — disclaimer global
+- `frontend/src/app/watchlist/page.tsx`
+- `frontend/src/app/assets/[symbol]/page.tsx`
+- `frontend/src/app/backtests/page.tsx`
+- `frontend/src/__tests__/setup.ts`
+- `frontend/src/__tests__/StatusBadge.test.tsx`
+- `frontend/src/__tests__/ScoreBar.test.tsx`
+- `frontend/src/__tests__/ErrorState.test.tsx`
+- `frontend/src/__tests__/EmptyState.test.tsx`
+- `frontend/src/__tests__/api.test.ts`
+- `frontend/src/__tests__/AssetDetail.insufficient.test.tsx`
+- `frontend/vitest.config.ts`
+- `docs/screenshots/README.md`
+
+**Arquivos alterados:**
+- `frontend/src/app/layout.tsx` — Providers, Navbar, Disclaimer
+- `frontend/src/app/page.tsx` — Overview com dados reais
+- `frontend/src/lib/api.ts` — camada tipada com ApiError e envelope de erro
+- `frontend/package.json` — scripts test/test:watch adicionados
+- `backend/app/schemas/backtest.py` — `symbol: str` em BacktestRunSummary
+- `backend/app/api/routers/backtests.py` — JOIN com Asset, itens construídos explicitamente
+- `backend/tests/integration/test_backtests.py` — 2 novos testes (symbol presente e filter verifica symbol)
+- `AUTOMATION_PROGRESS.md`, `CHANGELOG.md`
+
+**Validações:**
+- pytest 159/159 ✓ (era 158 — +1 teste de contrato do symbol)
+- ruff check ✓, ruff format --check ✓, mypy 66 arquivos ✓
+- vitest 35/35 ✓
+- npm run build ✓, ESLint ✓
+- Integração real: backend + banco + seed com 5 ativos (PETR4.SA, VALE3.SA, ITUB4.SA, BBDC4.SA, MGLU3.SA)
+- 4 backtests criados com campo `symbol` verificado na resposta
+- Frontend respondendo HTTP 200 em todas as 4 rotas
+
+**Limitações documentadas (Sprint 6):**
+- Colunas Preço/Variação/Volatilidade na Watchlist mostram "—" (não presentes em RankingEntry)
+- SMA/EMA exibidos como valores pontuais nos cards, não como série histórica no gráfico
+- Histórico de sinais indisponível (sem endpoint de série histórica de sinais)
+- Screenshots manuais pendentes (instruções em `docs/screenshots/README.md`)
+
+**Problemas, riscos ou bloqueios:** nenhum bloqueador. Push do commit anterior (5a332b1) ainda pendente.
+
+- **Data/hora de encerramento:** 2026-06-25
+- **Próxima tarefa recomendada:** Sprint 7 — IA, relatórios e alertas (aguarda aprovação do plano).
 
 ---
 

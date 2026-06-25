@@ -52,6 +52,7 @@ class BacktestRunSummary(BaseModel):
 
     id: int
     asset_id: int
+    symbol: str
     strategy_name: str
     strategy_version: str
     engine_version: str

@@ -47,16 +47,10 @@ def list_backtest_runs(
 ) -> dict:
     limit, offset = pagination["limit"], pagination["offset"]
 
-    query = db.query(BacktestRun)
+    query = db.query(BacktestRun, Asset).join(Asset, BacktestRun.asset_id == Asset.id)
 
     if symbol is not None:
-        asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
-        if asset is None:
-            return {
-                "items": [],
-                "pagination": PaginationMeta(limit=limit, offset=offset, total=0),
-            }
-        query = query.filter(BacktestRun.asset_id == asset.id)
+        query = query.filter(Asset.symbol == symbol.upper())
 
     if strategy_name is not None:
         query = query.filter(BacktestRun.strategy_name == strategy_name)
@@ -70,7 +64,28 @@ def list_backtest_runs(
     query = query.order_by(order_col.asc() if sort_order == "asc" else order_col.desc())
 
     total: int = query.count()
-    items = query.offset(offset).limit(limit).all()
+    rows = query.offset(offset).limit(limit).all()
+
+    items = [
+        BacktestRunSummary(
+            id=run.id,
+            asset_id=run.asset_id,
+            symbol=asset.symbol,
+            strategy_name=run.strategy_name,
+            strategy_version=run.strategy_version,
+            engine_version=run.engine_version,
+            data_start=run.data_start,
+            data_end=run.data_end,
+            initial_capital=run.initial_capital,
+            status=run.status,
+            total_return_pct=run.total_return_pct,
+            sharpe_ratio=run.sharpe_ratio,
+            max_drawdown_pct=run.max_drawdown_pct,
+            trade_count=run.trade_count,
+            created_at=run.created_at,
+        )
+        for run, asset in rows
+    ]
 
     return {
         "items": items,

@@ -168,6 +168,16 @@ def test_list_backtests_empty(client: TestClient) -> None:
     assert body["pagination"]["total"] == 0
 
 
+def test_list_backtests_item_has_symbol(client: TestClient) -> None:
+    _ingest(client, "SYMB.SA", _ohlcv_with_crossover())
+    client.post("/api/v1/backtests/run", json={"symbol": "SYMB.SA"}, headers={"X-Api-Key": API_KEY})
+    r = client.get("/api/v1/backtests")
+    assert r.status_code == 200
+    items = r.json()["items"]
+    assert len(items) >= 1
+    assert items[0]["symbol"] == "SYMB.SA"
+
+
 def test_list_backtests_filter_by_symbol(client: TestClient) -> None:
     _ingest(client, "LST1.SA", _ohlcv_with_crossover())
     _ingest(client, "LST2.SA", _ohlcv_with_crossover())
@@ -179,6 +189,7 @@ def test_list_backtests_filter_by_symbol(client: TestClient) -> None:
     body = r.json()
     assert body["pagination"]["total"] == 1
     assert body["items"][0]["strategy_name"] == "sma_crossover"
+    assert body["items"][0]["symbol"] == "LST1.SA"
 
 
 def test_list_backtests_pagination_meta(client: TestClient) -> None:
