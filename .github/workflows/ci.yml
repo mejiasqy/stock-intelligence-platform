@@ -76,7 +76,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci --no-audit
+        run: npm install --no-audit
 
       - name: Lint (ESLint)
         working-directory: frontend
