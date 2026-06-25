@@ -40,15 +40,21 @@ Screenshots capturados automaticamente via Playwright com dados reais, em 2026-0
 # 1. Subir banco e backend
 docker compose up -d db
 cd backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 2. Subir frontend
-cd ../frontend
+# 2. Subir frontend (outro terminal)
+cd frontend
 npm run dev
 
-# 3. Executar script de screenshots (Playwright)
-# O script está em docs/screenshots/take-screenshots.mjs (ou regenerar pelo histórico de sessão)
+# 3. Instalar Playwright (se necessário)
+npm install playwright
+npx playwright install chromium
+
+# 4. Executar script de screenshots (a partir da raiz do repositório)
+node scripts/take-dashboard-screenshots.mjs
 ```
+
+O script versionado está em `scripts/take-dashboard-screenshots.mjs` e usa caminhos relativos à raiz do repositório — não depende de caminho absoluto do ambiente.
 
 ## Validação de segurança e contratos (Sprint 6)
 

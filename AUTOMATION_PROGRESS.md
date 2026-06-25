@@ -39,7 +39,7 @@ Inclua estas regras explícitas:
 | Sprint 3 | Scoring e sinais | validado | domain/scoring, Signal model, migration, ScoringService, endpoints signal+rankings, 37 testes | — | pytest 91/91 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓ |
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
-| Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓, screenshots gerados ✓ |
+| Sprint 6 | Dashboard | em andamento | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | push e CI remoto pendentes | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, integração com dados reais ✓, screenshots gerados ✓ |
 | Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
@@ -1001,11 +1001,26 @@ uv run mypy app/
 - Histórico de sinais indisponível (sem endpoint de série temporal)
 - Equity curve tênue em captura headless (comportamento esperado; visual correto no browser)
 
-**Resultado entregue:** Sprint 6 completa, screenshots reais gerados via Playwright, documentação atualizada, todos os gates de qualidade aprovados. Commits pendentes de push: `5a332b1` (Sprint 5) e `e015e74` (Sprint 6) + commit desta sessão.
+**Alteração em `scripts/seed_demo_data.py`:** `Path(__file__).parent.parent` → `Path(__file__).resolve().parents[1]`. A chamada `.resolve()` resolve symlinks e caminhos relativos antes de traversar os pais, tornando o script robusto quando executado de diretórios arbitrários ou em ambientes com symlinks. Mudança funcional mínima, sem impacto nos testes. Incluída no commit `e1c59dc`.
 
-**Próxima tarefa recomendada:** Sprint 7 — IA, relatórios e alertas (aguarda aprovação do plano).
+**Script de screenshots versionado:** `scripts/take-dashboard-screenshots.mjs` — criado na revisão de fechamento. O script anterior estava em diretório temporário de sessão (não versionado); agora está no repositório com caminhos relativos à raiz e documentação de uso.
 
-**Data/hora de encerramento:** 2026-06-25 — 14:45
+**Status de entrega:**
+- Validações locais: todas aprovadas (ver tabela acima)
+- Push: **pendente** — aguarda execução manual pelo usuário (GCM requer autenticação gráfica)
+- CI remoto: **não verificado** — confirmar após push em https://github.com/mejiasqy/stock-intelligence-platform/actions
+- Sprint 6 será marcada como `validado` somente após CI verde confirmado
+
+**Commits pendentes de push (3):**
+- `5a332b1` — feat(sprint-5): professionalize API contracts and security controls
+- `e015e74` — feat(sprint-6): dashboard Next.js com 4 páginas e contrato BacktestRunSummary.symbol
+- `e1c59dc` — feat(sprint-6): deliver real-data financial dashboard
+
+**Resultado entregue:** validação local completa; script de screenshots versionado; documentação corrigida. Push e confirmação de CI são as únicas pendências antes de marcar a Sprint 6 como `validado`.
+
+**Próxima tarefa recomendada:** após push e CI verde confirmados, marcar Sprint 6 como `validado` e aguardar aprovação do plano da Sprint 7.
+
+**Data/hora de encerramento:** 2026-06-25 — 15:15
 
 ---
 
