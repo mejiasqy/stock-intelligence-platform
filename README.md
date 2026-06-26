@@ -124,7 +124,7 @@ Consulte [`docs/screenshots/README.md`](docs/screenshots/README.md) para detalhe
 ## Testes
 
 ```bash
-# Backend (159 testes: unit + integração com banco real)
+# Backend (222 testes: unit + integração com banco real)
 cd backend && uv run pytest tests/ -v
 
 # Frontend (35 testes Vitest: componentes, API layer, contratos)
@@ -154,6 +154,17 @@ Consulte `.env.example` para a lista completa. As variáveis obrigatórias para 
 | `PAGINATION_MAX_LIMIT_TRADES` | `500` | Máximo de trades por página |
 | `RATE_LIMIT_DEFAULT` | `120/minute` | Rate limit geral por IP |
 | `RATE_LIMIT_BACKTESTS` | `10/minute` | Rate limit para execução de backtests |
+| `LLM_PROVIDER` | `anthropic` | Provider de IA (suporta `anthropic`) |
+| `LLM_MODEL` | `claude-haiku-4-5-20251001` | Modelo LLM para relatórios analíticos |
+| `LLM_API_KEY` | *(vazio)* | Chave do provider LLM — nunca versionar com valor real |
+| `LLM_TIMEOUT_SECONDS` | `30` | Timeout da chamada ao LLM em segundos |
+| `ALERTS_ENABLED` | `false` | Habilita envio de alertas (opt-in) |
+| `ALERTS_DRY_RUN` | `true` | Registra payload sem enviar ao Telegram |
+| `TELEGRAM_BOT_TOKEN` | *(vazio)* | Token do bot Telegram — nunca versionar com valor real |
+| `TELEGRAM_CHAT_ID` | *(vazio)* | Chat ID do Telegram — nunca versionar com valor real |
+| `ALERT_DEDUP_HOURS` | `24` | Janela de deduplicação de alertas em horas |
+| `SCHEDULER_ENABLED` | `false` | Habilita job diário automático (opt-in) |
+| `DAILY_JOB_TIME` | `18:00` | Horário do job diário (não representa calendário de pregão) |
 
 ---
 

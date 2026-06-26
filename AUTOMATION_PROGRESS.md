@@ -5,8 +5,8 @@
 - **Objetivo:** plataforma de análise de ações, ranking de ativos, backtesting e relatórios assistidos por IA para fins educacionais e de portfólio.
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
-- **Sprint atual:** Sprint 5 — API profissional e segurança inicial
-- **Última atualização:** 2026-06-24 — 14:00
+- **Sprint atual:** Sprint 7 — IA, Relatórios e Alertas
+- **Última atualização:** 2026-06-25 — fechamento Sprint 7
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
 
@@ -40,7 +40,7 @@ Inclua estas regras explícitas:
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
 | Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, CI remoto verde (run 28192259475) ✓ |
-| Sprint 7 | IA, relatórios e alertas | não iniciado | — | Relatórios seguros, fallback e alertas | — |
+| Sprint 7 | IA, relatórios e alertas | validado localmente; aguardando push e CI remoto | Relatórios LLM + fallback, alertas Telegram dry-run, job agendado opt-in, advisory lock PostgreSQL, 222 testes | — | pytest 222/222 ✓, ruff ✓, mypy 92 arquivos ✓, alembic downgrade+upgrade ✓ |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
 ---
@@ -119,10 +119,10 @@ Inclua estas regras explícitas:
 
 ## 8. Próxima tarefa recomendada
 
-- **Tarefa:** Sprint 7 — IA, relatórios e alertas.
-- **Pré-condições:** Sprint 6 validada (pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓).
-- **Critério de conclusão:** provider de LLM desacoplado, fallback determinístico, alerta por 1 canal, job agendado.
-- **Status:** aguardando aprovação do plano
+- **Tarefa:** Sprint 8 — Deploy, observabilidade e portfólio.
+- **Pré-condições:** Sprint 7 validada com CI remoto verde (aguardando push e confirmação).
+- **Critério de conclusão:** CI completo com credenciais reais, documentação final, screenshots, entrega final do portfólio.
+- **Status:** aguardando aprovação do usuário após CI da Sprint 7
 
 ---
 
@@ -1021,6 +1021,138 @@ uv run mypy app/
 **Próxima tarefa recomendada:** após push e CI verde confirmados, marcar Sprint 6 como `validado` e aguardar aprovação do plano da Sprint 7.
 
 **Data/hora de encerramento:** 2026-06-25 — 15:15
+
+---
+
+### Sessão 2026-06-25 — Implementação e fechamento da Sprint 7
+
+- **Status da sessão:** concluído (validação local); CI remoto pendente
+- **Sprint e tarefa:** Sprint 7 — IA, Relatórios e Alertas
+- **Objetivo da sessão:** implementar geração de relatórios assistidos por IA, alertas Telegram e job agendado diário; resolver três bloqueios de auditoria; revalidar com 222 testes; criar commit de fechamento.
+
+#### Decisões técnicas aprovadas
+
+| ID | Decisão |
+|---|---|
+| D-LLM-1 | Provider Anthropic (`claude-haiku-4-5-20251001`) com fallback determinístico; sem dependência de resposta válida do LLM para manter o sistema operacional |
+| D-LLM-2 | Contexto enviado ao LLM: apenas dados calculados pelo backend; nunca segredos, credenciais ou informações de outros ativos |
+| D-LLM-3 | Saída estruturada JSON do LLM validada em 5 camadas: parse, schema, reason_codes, guardrails, factual |
+| D-LLM-4 | Fingerprint SHA-256 do contexto canônico garante idempotência de relatórios (mesmo ativo+tipo+data+contexto → retorna existente sem nova chamada ao LLM) |
+| D-ALERT-1 | `ALERTS_ENABLED=false` e `ALERTS_DRY_RUN=true` como defaults; alertas opt-in explícito |
+| D-ALERT-2 | Semântica de primeira observação: sem estado anterior → não dispara alerta |
+| D-ALERT-3 | Deduplicação por janela de 24h; status `failed` não bloqueia retry |
+| D-SCHED-1 | `SCHEDULER_ENABLED=false` por padrão; job diário opt-in via `BackgroundScheduler` (APScheduler síncrono) |
+| D-LOCK-1 | Advisory lock PostgreSQL session-level em conexão dedicada (`engine.connect()`); `sessionmaker(bind=lock_conn)` garante que lock e unlock usam a mesma conexão física |
+
+#### Arquivos criados (Sprint 7)
+
+**Configuração:**
+- `backend/app/core/config.py` — 13 novos campos (llm_*, alerts_*, scheduler_*)
+
+**Models e migrations:**
+- `backend/app/db/models/report_run.py` — tabela `report_runs`; constraint `uq_report_run_asset_type_date_fp`
+- `backend/app/db/models/alert_log.py` — tabela `alert_log`; FK para asset, report_run, signal
+- `backend/app/db/models/alert_state.py` — tabela `alert_state`; constraint `uq_alert_state_asset_rule`
+- `backend/app/db/models/__init__.py` — exporta ReportRun, AlertLog, AlertState
+- `backend/app/db/migrations/versions/c9d0e1f2a3b4_create_report_runs.py`
+- `backend/app/db/migrations/versions/d5e6f7a8b9c0_create_alert_log_and_alert_state.py` — inclui índice `ix_alert_log_asset_rule_fired` em (asset_id, rule_key, fired_at)
+
+**Domain/reports:**
+- `backend/app/domain/reports/protocol.py` — `LLMProvider` Protocol síncrono
+- `backend/app/domain/reports/anthropic_provider.py` — SDK síncrono com timeout configurável
+- `backend/app/domain/reports/fallback_provider.py` — determinístico; `FALLBACK_MODEL_NAME = "fallback/1.0.0"`
+- `backend/app/domain/reports/context_builder.py` — contexto sem segredos; todos os valores numéricos como float|None
+- `backend/app/domain/reports/fingerprint.py` — SHA-256 de json.dumps(sort_keys=True)
+- `backend/app/domain/reports/prompt.py` — `PROMPT_VERSION = "1.0.0"`; instrui JSON estruturado em PT-BR
+- `backend/app/domain/reports/validators.py` — 5 camadas de validação
+- `backend/app/domain/reports/output_renderer.py` — converte JSON validado em texto PT-BR com disclaimer
+
+**Domain/alerts:**
+- `backend/app/domain/alerts/rules.py` — `SignalChangeRule`, `ScoreHighRule`, `ScoreLowRule`; `AlertRule` Protocol para mypy
+- `backend/app/domain/alerts/telegram.py` — `send_alert` via httpx; dry_run sem rede; nunca loga token
+- `backend/app/domain/alerts/dedup.py` — consulta alert_log; `failed` não bloqueia retry
+
+**Schemas e serviços:**
+- `backend/app/schemas/report.py` — `ReportRunResponse` (sem segredos)
+- `backend/app/services/report_service.py` — `generate_report()` com idempotência e tratamento de `IntegrityError`
+- `backend/app/services/alert_service.py` — `evaluate_and_fire_alerts()` com primeira observação
+- `backend/app/services/pipeline_service.py` — `run_daily_pipeline()` sem parâmetro `db`; conexão dedicada para advisory lock
+
+**Routers e scheduler:**
+- `backend/app/api/routers/reports.py` — `GET /assets/{symbol}/report/latest`, `POST /generate`
+- `backend/app/api/routers/jobs.py` — `POST /jobs/daily-pipeline/run` (X-Api-Key)
+- `backend/app/scheduler/__init__.py`
+- `backend/app/scheduler/runner.py` — `BackgroundScheduler`; inicia só se `SCHEDULER_ENABLED=true`
+
+**Testes unitários (6 novos arquivos, 37 testes):**
+- `backend/tests/unit/test_report_context.py` (7)
+- `backend/tests/unit/test_report_validators.py` (11)
+- `backend/tests/unit/test_report_fallback.py` (5)
+- `backend/tests/unit/test_report_output_renderer.py` (3)
+- `backend/tests/unit/test_alert_rules.py` (9)
+- `backend/tests/unit/test_alert_dedup.py` (4)
+
+**Testes de integração (3 novos arquivos, 24 testes):**
+- `backend/tests/integration/test_reports.py` (9) — inclui `test_race_condition_true_integrity_error`
+- `backend/tests/integration/test_alerts.py` (7)
+- `backend/tests/integration/test_jobs.py` (8) — inclui `test_lock_and_unlock_same_connection` com `pg_backend_pid()`
+
+#### Arquivos alterados (Sprint 7)
+
+- `backend/app/main.py` — registra routers de relatórios e jobs; lifespan com scheduler; códigos de erro novos
+- `backend/tests/integration/conftest.py` — fixture `db_session` + `clean_db` com `alert_log`, `alert_state`, `report_runs`
+- `backend/pyproject.toml` — `anthropic>=0.40.0`, `apscheduler>=3.10.4`
+- `.env.example` — 14 novas variáveis documentadas (LLM, alertas, scheduler)
+
+#### Bloqueios de auditoria resolvidos
+
+| Bloqueio | Solução |
+|---|---|
+| Advisory lock em conexão não garantida | `engine.connect()` como `lock_conn` dedicada; `sessionmaker(bind=lock_conn)`; unlock em `finally` |
+| Índice de deduplicação ausente | `ix_alert_log_asset_rule_fired` em `(asset_id, rule_key, fired_at)` na migration `d5e6f7a8b9c0` |
+| Teste de race condition só cobrindo pré-consulta | `test_race_condition_true_integrity_error`: duas `SessionLocal()` independentes; `flush()` sem pré-check → `IntegrityError` real |
+
+#### Evidências de segurança
+
+- `LLM_API_KEY=` vazio no `.env.example`; nunca em logs, respostas HTTP ou OpenAPI
+- `TELEGRAM_BOT_TOKEN=` e `TELEGRAM_CHAT_ID=` vazios no `.env.example`; nunca logados
+- `input_snapshot_json` sem segredos (validado em `test_report_run_persisted_correctly`)
+- `payload_snapshot_json` sem token/chat_id (validado em `test_rule_payload_no_secrets`)
+- Nenhuma chamada real ao Anthropic ou Telegram nos testes
+
+#### Migrations aplicadas
+
+| Revisão | Operação | Resultado |
+|---|---|---|
+| `c9d0e1f2a3b4` | `upgrade` | Tabela `report_runs` + constraint `uq_report_run_asset_type_date_fp` |
+| `d5e6f7a8b9c0` | `downgrade → upgrade` | Tabelas `alert_log` + `alert_state`; índice `ix_alert_log_asset_rule_fired` reaplicado |
+
+Schema confirmado: `alembic current → d5e6f7a8b9c0 (head)`.
+
+#### Comandos executados e resultados
+
+| Comando | Resultado |
+|---|---|
+| `uv run alembic downgrade c9d0e1f2a3b4` | Sucesso ✓ |
+| `uv run alembic upgrade head` | Sucesso ✓ |
+| `uv run alembic current` | `d5e6f7a8b9c0 (head)` ✓ |
+| `uv run pytest tests/ -v` | **222 passed, 11 warnings** ✓ |
+| `uv run ruff check .` | `All checks passed!` ✓ |
+| `uv run ruff format --check .` | `116 files already formatted` ✓ |
+| `uv run mypy app/` | `no issues found in 92 source files` ✓ |
+
+#### Limitações conhecidas (Sprint 7)
+
+- Sem validação com credenciais Anthropic reais (LLM_API_KEY ausente em CI)
+- Sem envio Telegram real (dry_run e ALERTS_ENABLED=false por padrão)
+- Scheduler não validado em ambiente de produção
+- Nenhum dashboard de relatórios nesta sprint (Sprint 8)
+- Sem Redis/Celery/fila distribuída
+
+- **Resultado entregue:** Sprint 7 validada localmente; commit de fechamento criado.
+- **Problemas, riscos ou bloqueios:** nenhum bloqueio técnico. CI remoto pendente de confirmação.
+- **Próxima tarefa recomendada:** confirmar CI remoto verde → marcar Sprint 7 como `validado` → aguardar aprovação do plano da Sprint 8.
+- **Data/hora de encerramento:** 2026-06-25
 
 ---
 

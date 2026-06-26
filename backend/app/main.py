@@ -8,11 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from app.api.routers import analysis, assets, backtests, health, signals
+from app.api.routers import analysis, assets, backtests, health, jobs, reports, signals
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.rate_limiter import limiter
 from app.middleware.request_id import RequestIDMiddleware, request_id_var
+from app.scheduler.runner import start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ _CODE_MESSAGES: dict[str, str] = {
     "backtest_run_not_found": "Backtest run not found.",
     "unknown_strategy": "Unknown backtest strategy.",
     "asset_already_exists": "An asset with this symbol already exists.",
+    "no_report_available": "No report available for this asset.",
+    "pipeline_already_running": "Pipeline is already running. Try again later.",
     "rate_limit_exceeded": "Too many requests. Please slow down.",
     "validation_error": "Request validation failed.",
     "internal_server_error": "An internal error occurred.",
@@ -71,7 +74,9 @@ def _error_body(code: str, message: str, fields: list[dict[str, str]] | None = N
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 # ---------------------------------------------------------------------------
@@ -176,3 +181,5 @@ app.include_router(assets.router, prefix="/api/v1")
 app.include_router(analysis.router, prefix="/api/v1")
 app.include_router(signals.router, prefix="/api/v1")
 app.include_router(backtests.router, prefix="/api/v1")
+app.include_router(reports.router, prefix="/api/v1")
+app.include_router(jobs.router, prefix="/api/v1")

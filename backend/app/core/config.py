@@ -30,5 +30,27 @@ class Settings(BaseSettings):
     rate_limit_ingestion: str = "10/minute"
     rate_limit_backtests: str = "10/minute"
 
+    # LLM — nunca expor llm_api_key em logs, respostas HTTP ou OpenAPI
+    llm_provider: str = "anthropic"
+    llm_model: str = "claude-haiku-4-5-20251001"
+    llm_api_key: str = ""
+    llm_timeout_seconds: int = 30
+    llm_max_output_tokens: int = 1024
+
+    # Alertas — nunca expor telegram_bot_token/telegram_chat_id
+    alerts_enabled: bool = False
+    alerts_dry_run: bool = True
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    alert_on_signal_change: bool = True
+    alert_score_high_threshold: float = 70.0
+    alert_score_low_threshold: float = 25.0
+    alert_dedup_hours: int = 24
+
+    # Scheduler — inicia somente se scheduler_enabled=true
+    scheduler_enabled: bool = False
+    daily_job_time: str = "18:00"
+    daily_job_timezone: str = "America/Sao_Paulo"
+
 
 settings = Settings()

@@ -1,9 +1,20 @@
 from collections.abc import Generator
 
 import pytest
+from sqlalchemy.orm import Session
 
 from app.core.rate_limiter import limiter
 from app.db.session import SessionLocal
+
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    """Sessão de banco de dados isolada para testes de integração."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @pytest.fixture(autouse=True)
@@ -13,7 +24,8 @@ def clean_db() -> Generator[None, None, None]:
     try:
         db.execute(
             __import__("sqlalchemy").text(
-                "TRUNCATE TABLE signals, indicator_snapshots, price_bars, assets"
+                "TRUNCATE TABLE alert_log, alert_state, report_runs,"
+                " signals, indicator_snapshots, price_bars, assets"
                 " RESTART IDENTITY CASCADE"
             )
         )
