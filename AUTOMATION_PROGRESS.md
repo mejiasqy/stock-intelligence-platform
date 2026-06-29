@@ -6,6 +6,8 @@
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
 - **Sprint atual:** Sprint 7 — IA, Relatórios e Alertas
+- **Status da sprint:** validado localmente; aguardando push e CI remoto
+- **Próxima sprint planejada:** Sprint 8 — Deploy, observabilidade e portfólio (não iniciada)
 - **Última atualização:** 2026-06-25 — fechamento Sprint 7
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
