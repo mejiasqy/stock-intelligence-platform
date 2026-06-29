@@ -6,9 +6,9 @@
 - **Documento mestre:** `PROJECT_CONTEXT.md`
 - **Status geral:** Em andamento
 - **Sprint atual:** Sprint 7 — IA, Relatórios e Alertas
-- **Status da sprint:** validado localmente; aguardando push e CI remoto
+- **Status da sprint:** validado — CI remoto verde (run 28371306943, 2026-06-29)
 - **Próxima sprint planejada:** Sprint 8 — Deploy, observabilidade e portfólio (não iniciada)
-- **Última atualização:** 2026-06-25 — fechamento Sprint 7
+- **Última atualização:** 2026-06-29 — Sprint 7 marcada como validada
 - **Responsável de implementação:** Claude Code sob direção do usuário
 - **Regra de segurança:** o sistema não executa ordens de compra/venda e não oferece recomendação financeira.
 
@@ -42,7 +42,7 @@ Inclua estas regras explícitas:
 | Sprint 4 | Backtesting | validado | walk-forward engine, SMA crossover, métricas, endpoints, 36 testes novos | — | pytest 124/124 ✓, ruff ✓, mypy ✓, alembic upgrade head ✓, commit 99ea654 |
 | Sprint 5 | API profissional e segurança inicial | validado | Implementação completa + 34 testes novos (total 158) | — | pytest 158/158 ✓, ruff ✓, mypy 66 arquivos ✓ |
 | Sprint 6 | Dashboard | validado | 4 páginas Next.js, 35 testes Vitest, `symbol` em BacktestRunSummary, gráficos reais, 11 screenshots reais | — | pytest 159/159 ✓, vitest 35/35 ✓, npm build ✓, ESLint ✓, mypy 66 ✓, CI remoto verde (run 28192259475) ✓ |
-| Sprint 7 | IA, relatórios e alertas | validado localmente; aguardando push e CI remoto | Relatórios LLM + fallback, alertas Telegram dry-run, job agendado opt-in, advisory lock PostgreSQL, 222 testes | — | pytest 222/222 ✓, ruff ✓, mypy 92 arquivos ✓, alembic downgrade+upgrade ✓ |
+| Sprint 7 | IA, relatórios e alertas | validado | Relatórios LLM + fallback, alertas Telegram dry-run, job agendado opt-in, advisory lock PostgreSQL, 222 testes | — | pytest 222/222 ✓, ruff ✓, mypy 92 arquivos ✓, alembic downgrade+upgrade ✓, CI remoto verde (run 28371306943) ✓ |
 | Sprint 8 | Deploy, observabilidade e portfólio | não iniciado | — | CI completo, documentação, screenshots e entrega final | — |
 
 ---
@@ -122,9 +122,9 @@ Inclua estas regras explícitas:
 ## 8. Próxima tarefa recomendada
 
 - **Tarefa:** Sprint 8 — Deploy, observabilidade e portfólio.
-- **Pré-condições:** Sprint 7 validada com CI remoto verde (aguardando push e confirmação).
+- **Pré-condições:** Sprint 7 validada com CI remoto verde ✓ (2026-06-29).
 - **Critério de conclusão:** CI completo com credenciais reais, documentação final, screenshots, entrega final do portfólio.
-- **Status:** aguardando aprovação do usuário após CI da Sprint 7
+- **Status:** aguardando aprovação do usuário para iniciar planejamento da Sprint 8
 
 ---
 
@@ -1151,10 +1151,10 @@ Schema confirmado: `alembic current → d5e6f7a8b9c0 (head)`.
 - Nenhum dashboard de relatórios nesta sprint (Sprint 8)
 - Sem Redis/Celery/fila distribuída
 
-- **Resultado entregue:** Sprint 7 validada localmente; commit de fechamento criado.
-- **Problemas, riscos ou bloqueios:** nenhum bloqueio técnico. CI remoto pendente de confirmação.
-- **Próxima tarefa recomendada:** confirmar CI remoto verde → marcar Sprint 7 como `validado` → aguardar aprovação do plano da Sprint 8.
-- **Data/hora de encerramento:** 2026-06-25
+- **Resultado entregue:** Sprint 7 plenamente validada — CI remoto verde (run 28371306943, 2026-06-29).
+- **Problemas, riscos ou bloqueios:** nenhum.
+- **Próxima tarefa recomendada:** aguardar aprovação do usuário para iniciar planejamento da Sprint 8.
+- **Data/hora de encerramento:** 2026-06-29
 
 ---
 
